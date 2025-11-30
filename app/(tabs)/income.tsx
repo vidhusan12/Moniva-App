@@ -1,0 +1,184 @@
+import { useFocusEffect } from "expo-router";
+import React, { useState } from "react";
+import {
+  Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { addIncome, fetchAllIncome, Income } from "../../services/income";
+
+const IncomeDetails = () => {
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [frequency, setFrequency] = useState("");
+  const [incomes, setIncomes] = useState<Income[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const frequencyOptions = ["Weekly", "Fortnightly", "Monthly", "One Time"];
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadIncomes = async () => {
+        try {
+          setLoading(true);
+          const data = await fetchAllIncome();
+          setIncomes(data);
+        } catch (error) {
+        } finally {
+          setLoading(false);
+        }
+      };
+      loadIncomes();
+    }, [])
+  );
+
+  const handleSubmit = async () => {
+    const parsedAmount = parseFloat(amount);
+    if (!parsedAmount || isNaN(parsedAmount) || description.trim() === "") {
+      Alert.alert("Error", "Enter a valid amount and description.");
+      return;
+    }
+
+    try {
+      await addIncome({
+        amount: parsedAmount,
+        description: description.trim(),
+      });
+      Alert.alert("Success", "Income added!");
+      setAmount("");
+      setDescription("");
+      const data = await fetchAllIncome();
+      setIncomes(data);
+    } catch (error) {
+      Alert.alert(
+        "Error",
+        error instanceof Error ? error.message : "Unknown error"
+      );
+    }
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-[#ffffff]">
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        {/* Header */}
+        <View className="px-5 pt-8 items-start">
+          <Text className="text-2xl font-rubik-semibold">New Income</Text>
+          <Text className="text-sm font-rubik-light text-gray-700 mb-4">
+            Add your income and how often you receive it
+          </Text>
+        </View>
+
+        {/* Income amount card */}
+        <View className=" px-5 items-start w-full">
+          <View className="w-full max-w-md bg-white rounded-2xl p-5 shadow-md shadow-black/10">
+            <Text className="font-rubik pb-4 text-lg tracking-wider">
+              Income amount
+            </Text>
+            <TextInput
+              className="text-3xl font-rubik bg-transparent mb-8"
+              placeholder="$0.00"
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="numeric"
+              placeholderTextColor="#333"
+            />
+          </View>
+        </View>
+
+        {/* Description label OUTSIDE the box */}
+        <View className="items-start w-full px-5 mt-4">
+          <Text className="text-lg font-rubik mb-1">Description</Text>
+        </View>
+        <View className="items-start w-full">
+          <View className="w-11/12 max-w-md bg-white rounded-2xl mx-4 shadow-md shadow-black/10 ">
+            <TextInput
+              placeholder="e.g. Salary, Freelancer"
+              value={description}
+              onChangeText={setDescription}
+              placeholderTextColor="#adb5bd"
+              className="text-base font-rubik bg-transparent py-4 px-3 min-h-[48px]"
+            />
+          </View>
+        </View>
+
+        {/* Frequency box */}
+        <View className="items-start w-full px-5 mt-4">
+          <Text className="text-lg font-rubik mb-1">Frequency</Text>
+          <View className="flex-row space-x-4">
+            {frequencyOptions.map((option) => (
+              <TouchableOpacity
+                key={option}
+                onPress={() => setFrequency(option)}
+                className={`px-4 py-2 rounded-xl border ${
+                  frequency === option
+                    ? "bg-[#ffd33d] border-[#ffd33d] text-black font-rubik-semibold"
+                    : "bg-white border-gray-300 text-gray-700 font-rubik"
+                }`}
+              >
+                <Text
+                  className={`${
+                    frequency === option
+                      ? "text-black font-rubik-semibold"
+                      : "text-gray-700 font-rubik"
+                  }`}
+                >
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* ADD & Cancel box */}
+        <View className="justify-center items-center gap-4  mt-4">
+          <TouchableOpacity
+            className="bg-blue-500 px-8 py-3 rounded-lg w-48"
+            onPress={handleSubmit}
+          >
+            <Text className="font-rubik text-lg text-center">Add</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Income details card */}
+        <View className="items-start w-full px-5 mt-4 mb-6">
+          <Text className="text-lg font-rubik mb-2">Your Income</Text>
+          <View className="w-full max-w-md bg-white rounded-2xl shadow-md shadow-black/10">
+            {incomes.map((income, index) => (
+              <View key={income._id} className="px-4 py-2.5">
+                {/* Row 1: Description and Amount */}
+                <View className="flex-row justify-between mb-0.5">
+                  <Text className="font-rubik-medium text-lg">
+                    {income.description}
+                  </Text>
+                  <Text className="font-rubik text-lg">
+                    ${income.amount.toFixed(2)}
+                  </Text>
+                </View>
+
+                {/* Row 2: Frequency and Next Pay */}
+                <View className="flex-row">
+                  <Text className="font-rubik text-sm text-gray-600">
+                    Monthly
+                  </Text>
+                  <Text className="font-rubik text-sm text-gray-600 mx-1">
+                    {" "}
+                    •{" "}
+                  </Text>
+                  <Text className="font-rubik text-sm text-gray-600">
+                    Next pay: 30 Aug
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+export default IncomeDetails;
