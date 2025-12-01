@@ -1,3 +1,5 @@
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -9,7 +11,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { addIncome, fetchAllIncome, Income } from "../../services/income";
+import {
+  addIncome,
+  deleteIncome,
+  fetchAllIncome,
+  Income,
+} from "../../services/income";
 
 const IncomeDetails = () => {
   const [amount, setAmount] = useState("");
@@ -38,8 +45,13 @@ const IncomeDetails = () => {
 
   const handleSubmit = async () => {
     const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || isNaN(parsedAmount) || description.trim() === "") {
-      Alert.alert("Error", "Enter a valid amount and description.");
+    if (
+      !parsedAmount ||
+      isNaN(parsedAmount) ||
+      description.trim() === "" ||
+      !frequency
+    ) {
+      Alert.alert("Error", "Enter amount, description, and select frequency.");
       return;
     }
 
@@ -47,10 +59,12 @@ const IncomeDetails = () => {
       await addIncome({
         amount: parsedAmount,
         description: description.trim(),
+        frequency: frequency,
       });
       Alert.alert("Success", "Income added!");
       setAmount("");
       setDescription("");
+      setFrequency("");
       const data = await fetchAllIncome();
       setIncomes(data);
     } catch (error) {
@@ -60,6 +74,31 @@ const IncomeDetails = () => {
       );
     }
   };
+
+  const handleDelete = async (id?: string) => {
+    if (!id) {
+      Alert.alert("Error", "No ID provided");
+      return;
+    }
+
+    try {
+      await deleteIncome(id); // calls teh delete api
+      const updatedIncomes = await fetchAllIncome();
+      setIncomes(updatedIncomes);
+    } catch (error) {
+      Alert.alert("Error", "Failed to delete income");
+    }
+  };
+
+  const handleEdit = async (id?: string) => {};
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-[#ffffff]">
+        <Text>Loading...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#ffffff]">
@@ -150,19 +189,36 @@ const IncomeDetails = () => {
             {incomes.map((income, index) => (
               <View key={income._id} className="px-4 py-2.5">
                 {/* Row 1: Description and Amount */}
-                <View className="flex-row justify-between mb-0.5">
-                  <Text className="font-rubik-medium text-lg">
-                    {income.description}
-                  </Text>
-                  <Text className="font-rubik text-lg">
-                    ${income.amount.toFixed(2)}
-                  </Text>
+                <View className="flex-row justify-between items-center mb-0.5">
+                  {/* Left side: Description and Amount close together */}
+                  <View className="flex-row items-center gap-3">
+                    <Text className="font-rubik-medium text-lg">
+                      {income.description}
+                    </Text>
+                    <Text className="font-rubik text-lg">
+                      ${income.amount.toFixed(2)}
+                    </Text>
+                  </View>
+
+                  {/* Right side: Edit and Delete buttons */}
+                  <View className="flex-row gap-3">
+                    <TouchableOpacity onPress={() => handleDelete(income._id)}>
+                      <FontAwesome name="edit" size={18} color="black" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDelete(income._id)}>
+                      <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color="#ef233c"
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 {/* Row 2: Frequency and Next Pay */}
                 <View className="flex-row">
                   <Text className="font-rubik text-sm text-gray-600">
-                    Monthly
+                    {income.frequency}
                   </Text>
                   <Text className="font-rubik text-sm text-gray-600 mx-1">
                     {" "}

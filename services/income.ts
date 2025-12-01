@@ -1,9 +1,10 @@
 // What an income looks like
 export type Income = {
-  _id: string;
+  _id?: string;
   amount: number;
   description: string;
-  date: string
+  frequency: string;
+  date?: string;
 };
 
 // Your backend URL
@@ -27,10 +28,21 @@ export const addIncome = async (incomeData: Income): Promise<Income> => {
 // Get all incomes from database
 export const fetchAllIncome = async (): Promise<Income[]> => {
   const response = await fetch(`${API_URL}/api/incomes`);
-  
+
   if (!response.ok) {
     throw new Error(`Error: ${response.status}`);
   }
-  
+
   return await response.json();
+};
+
+// Delete income from database
+export const deleteIncome = async (id: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/api/incomes/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete: ${response.status}`);
+  }
 };
