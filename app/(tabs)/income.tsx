@@ -1,9 +1,15 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import {formatMongoDate, calculateDaysUntilPay} from '../../utils/mongoDate'
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { useFocusEffect } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  Platform,
+  Modal,
   ScrollView,
   Text,
   TextInput,
@@ -22,6 +28,8 @@ const IncomeDetails = () => {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [frequency, setFrequency] = useState("");
+  const [nextPayDate, setNextPayDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,6 +68,7 @@ const IncomeDetails = () => {
         amount: parsedAmount,
         description: description.trim(),
         frequency: frequency,
+        startDate: nextPayDate.toISOString().split("T")[0],
       });
       Alert.alert("Success", "Income added!");
       setAmount("");
@@ -73,6 +82,32 @@ const IncomeDetails = () => {
         error instanceof Error ? error.message : "Unknown error"
       );
     }
+  };
+
+  const onChangeDate = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    // 1. On Android, close the picker immediately after the user makes a selection
+    // The 'default' display style on Android automatically closes when a date is picked.
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+
+    // 2. If the user successfully picked a date (not just dismissed the picker)
+    if (event.type === "set" && selectedDate) {
+      setNextPayDate(selectedDate);
+    }
+
+    if (Platform.OS === "ios" && selectedDate) {
+      setNextPayDate(selectedDate);
+    }
+
+    if (event.type === "dismissed" && Platform.OS === "ios") {
+      setShowDatePicker(false);
+    }
+  };
+
+  // 5. Function to format the Date object for display (same as before)
+  const formatDateForDisplay = (date: Date) => {
+    return date.toLocaleDateString("en-GB");
   };
 
   const handleDelete = async (id?: string) => {
@@ -143,6 +178,34 @@ const IncomeDetails = () => {
             />
           </View>
         </View>
+
+        {/* Start Date box */}
+        <View className="items-start w-full px-5 mt-4">
+          <Text className="text-lg font-rubik mb-1">Next Pay</Text>
+        </View>
+        <View className="items-start w-full">
+          <View className="w-11/12 max-w-md bg-white rounded-2xl mx-4 shadow-md shadow-black/10 ">
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              className="text-base font-rubik bg-transparent py-4 px-3 min-h-[48px] justify-center"
+              activeOpacity={0.7}
+            >
+              <Text>{formatDateForDisplay(nextPayDate)}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 7. Date Picker Component (Conditional Rendering) */}
+        {showDatePicker && (
+          <DateTimePicker
+            testID="dateTimePicker"
+            value={nextPayDate} // Must be a Date object
+            mode="date"
+            // 'spinner' is preferred on iOS for cleaner appearance
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            onChange={onChangeDate}
+          />
+        )}
 
         {/* Frequency box */}
         <View className="items-start w-full px-5 mt-4">
@@ -225,7 +288,7 @@ const IncomeDetails = () => {
                     •{" "}
                   </Text>
                   <Text className="font-rubik text-sm text-gray-600">
-                    Next pay: 30 Aug
+                    Next pay: {calculateDaysUntilPay(income.startDate || '')}
                   </Text>
                 </View>
               </View>

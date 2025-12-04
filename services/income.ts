@@ -4,6 +4,7 @@ export type Income = {
   amount: number;
   description: string;
   frequency: string;
+  startDate?: string;
   date?: string;
 };
 

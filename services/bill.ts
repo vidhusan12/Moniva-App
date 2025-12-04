@@ -1,6 +1,10 @@
 export type Bill = {
+  _id?: string;
   amount: number;
   description: string;
+  frequency: string;
+  startDate?: string;
+  date?: string;
 };
 
 const API_URL = "https://moniva-backend.onrender.com";
@@ -29,4 +33,15 @@ export const fetchAllBill = async (): Promise<Bill[]> => {
   }
 
   return await response.json();
+};
+
+// Delete Bill from database
+export const deleteBill = async (id: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/api/bills/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete ${response.status}`);
+  }
 };
