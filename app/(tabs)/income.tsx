@@ -120,7 +120,7 @@ const IncomeDetails = () => {
                     •{" "}
                   </Text>
                   <Text className="font-rubik text-sm text-gray-600">
-                    Next pay: {calculateDaysUntilPay(income.startDate || "")}
+                    Next pay in : {calculateDaysUntilPay(income.startDate || "")}
                   </Text>
                 </View>
               </View>

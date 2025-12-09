@@ -1,17 +1,11 @@
 import { Bill, fetchAllBill } from "@/services/bill";
-import {
-  endOfWeek,
-  format,
-  getWeek,
-  startOfMonth,
-  startOfWeek,
-} from "date-fns";
+import { calculateWeeklyBillTotal } from "@/utils/billUtils";
+import { getCurrentWeekOfMonth, getWeekDateRange } from "@/utils/dateUtils";
 import { useFocusEffect } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchAllIncome, Income } from "../../services/income";
-import { getCurrentWeekOfMonth, getWeekDateRange } from "@/utils/dateUtils";
 
 const index = () => {
   const [incomes, setIncomes] = useState<Income[]>([]);
@@ -43,12 +37,8 @@ const index = () => {
     );
   }
 
-
   const currentWeekOfMonth = getCurrentWeekOfMonth();
   const dateRange = getWeekDateRange();
-
-  
-
 
   function calculateWeeklyIncome() {
     let totalWeekly = 0;
@@ -57,11 +47,22 @@ const index = () => {
         totalWeekly += income.amount;
       }
     });
-    
+
     return totalWeekly;
   }
 
   const weekylyIncome = calculateWeeklyIncome();
+
+  // Bills
+  const totalMonthlyBill = calculateWeeklyBillTotal(bills);
+  const recommendedWeeklyBudget = totalMonthlyBill / 4;
+  const remainingBillsThisMonth = totalMonthlyBill - recommendedWeeklyBudget;
+
+  // Calculate Total balance
+  function calculateToalBalance() {
+    const total = calculateWeeklyIncome();
+    return total - recommendedWeeklyBudget;
+  }
 
   return (
     <SafeAreaView>
@@ -98,7 +99,7 @@ const index = () => {
               Total balance
             </Text>
             <Text className="font-rubik-medium text-[#edf6f9] text-2xl">
-              ${weekylyIncome}
+              ${calculateToalBalance().toFixed(2)}
             </Text>
             <Text className="font-rubik text-[#edf6f9] text-sm mt-5">
               This is everything you have across your accounts right now.
@@ -118,23 +119,11 @@ const index = () => {
                 Put aside for bills
               </Text>
               <Text className="font-rubik-medium text-[#ffd000] text-lg mb-3">
-                $40.00
-              </Text>
-              <Text className="font-rubik text-[#edf6f9] text-sm">
-                Left to Spend this week
-              </Text>
-              <Text className="font-rubik-medium text-[#edf6f9] text-lg mb-3">
-                $70.00
+                ${recommendedWeeklyBudget.toFixed(2)}
               </Text>
             </View>
             {/* RIGHT Column */}
             <View>
-              <Text className="font-rubik text-[#edf6f9] text-sm">
-                Safe to spend today
-              </Text>
-              <Text className="font-rubik-medium text-[#edf6f9] text-lg mb-3">
-                $10.00
-              </Text>
               <Text className="font-rubik text-[#edf6f9] text-sm">
                 Put aside for savings
               </Text>
@@ -142,10 +131,10 @@ const index = () => {
                 $90.00
               </Text>
               <Text className="font-rubik text-[#edf6f9] text-sm">
-                Remaining Bills this week
+                Remaining Bills this Month
               </Text>
               <Text className="font-rubik-medium text-[#e5383b] text-lg mb-3">
-                $340.00
+                ${remainingBillsThisMonth.toFixed(2)}
               </Text>
             </View>
           </View>

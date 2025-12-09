@@ -1,16 +1,9 @@
-export const formatMongoDate = (iosDate: string): string => {
+import { differenceInDays, format, parseISO, startOfDay } from "date-fns";
+
+export const formatMongoDate = (isoDate: string): string => {
   try {
-    const dateObj = new Date(iosDate);
-
-    if (isNaN(dateObj.getTime())) {
-      return "Invaild Date";
-    }
-
-    return dateObj.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
+    const date = startOfDay(parseISO(isoDate));
+    return format(date, "dd/MM/yyyy");
   } catch (e) {
     console.error("Error formatting date:", e);
     return "Error";
@@ -19,16 +12,10 @@ export const formatMongoDate = (iosDate: string): string => {
 
 export const calculateDaysUntilPay = (nextPayIsoDate: string): string => {
   try {
-    const nextPayDate = new Date(nextPayIsoDate);
-    const today = new Date();
+    const nextPayDate = startOfDay(parseISO(nextPayIsoDate));
+    const today = startOfDay(new Date());
 
-    // Reset hours/minutes/seconds of both dates for accurate day comparison
-    nextPayDate.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-
-    const diffTime = nextPayDate.getTime() - today.getTime();
-    // Convert milliseconds to days (Math.ceil rounds up, so 1.5 days is 2 days away)
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = differenceInDays(nextPayDate, today);
 
     if (diffDays === 0) {
       return "Pay due today";

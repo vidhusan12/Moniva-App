@@ -42,7 +42,7 @@ const IncomeDetails = () => {
         amount: parsedAmount,
         description: description.trim(),
         frequency: frequency,
-        startDate: nextPayDate.toISOString().split("T")[0],
+        startDate: nextPayDate.toISOString(),
       });
       Alert.alert("Success", "Income added!");
       setAmount("");
