@@ -73,7 +73,12 @@ const BillDetails = () => {
         bill.frequency
       );
       const nextDateString = format(nextDateObject, "yyyy-MM-dd");
-      await updateBill(bill._id, { startDate: nextDateString });
+      const paidDateString = format(new Date(), "yyyy-MM-dd");
+
+      await updateBill(bill._id, {
+        startDate: nextDateString,
+        lastPaidDate: paidDateString,
+      });
       Alert.alert(
         "Success",
         `${bill.description} marked as paid! Next due date: ${nextDateString}`
@@ -82,6 +87,34 @@ const BillDetails = () => {
     } catch (error) {
       console.error("Payment failed:", error);
       Alert.alert("Error", "Failed to mark bill as paid.");
+    }
+  };
+
+  // Mark a bill as UNPAID, clearing its last paid date
+  const handleMarkUnpaid = async (bill: Bill) => {
+    if (!bill._id) {
+      Alert.alert("Error", "Bill ID missing.");
+      return;
+    }
+
+    if (!bill.startDate) {
+      Alert.alert(
+        "Error",
+        "Cannot revert unpaid status: Bill has no schedule date."
+      );
+      return;
+    }
+
+    try {
+      await updateBill(bill._id, {
+        startDate: bill.startDate,
+        lastPaidDate: null, // clear lastPaidDate.
+      });
+      Alert.alert("Success", `${bill.description} marked as UNPAID.`);
+      loadBills(); // Refresh the list
+    } catch (error) {
+      console.error("Unpaid failed:", error);
+      Alert.alert("Error", "Failed to mark bill as unpaid.");
     }
   };
 
@@ -207,7 +240,12 @@ const BillDetails = () => {
               <View className="flex-row justify-evenly">
                 {/* Edit Button */}
                 <TouchableOpacity
-                  onPress={() => handleDelete(bill._id)}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/newBill",
+                      params: { id: bill._id },
+                    })
+                  }
                   className="flex-row items-center gap-2 bg-blue-100 px-6 py-3 rounded-lg"
                 >
                   <SimpleLineIcons name="pencil" size={16} color="blue" />
@@ -274,8 +312,39 @@ const BillDetails = () => {
                   </Text>
                 </View>
               </View>
+
+              {/* Action Row for Paid Bills (Unpaid/Edit/Delete) */}
+              <View className="flex-row justify-evenly pt-2 pb-5">
+                {/* UNPAID Button */}
+                <TouchableOpacity
+                  onPress={() => handleMarkUnpaid(bill)} // ⭐️ NEW: Call the revert function
+                  className="flex-row items-center gap-2 bg-yellow-100 px-6 py-3 rounded-lg"
+                >
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={16}
+                    color="#d90429"
+                  />
+                  <Text className="font-rubik text-red-700">Unpaid</Text>
+                </TouchableOpacity>
+
+                {/* Edit Paid Bill Button (Optional - sends to Edit form) */}
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: "/newBill",
+                      params: { id: bill._id },
+                    })
+                  }
+                  className="flex-row items-center gap-2 bg-blue-100 px-6 py-3 rounded-lg"
+                >
+                  <SimpleLineIcons name="pencil" size={16} color="blue" />
+                  <Text className="font-rubik text-blue-700">Edit</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* ACCESS startDate for NEXT due date */}
               <Text className="text-center text-gray-400 font-light pb-2">
-                {/* ACCESS startDate for NEXT due date */}
                 Next due: {formatMongoDate(bill.startDate || "")}
               </Text>
             </View>

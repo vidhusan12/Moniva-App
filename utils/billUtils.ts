@@ -134,8 +134,10 @@ export function getPaidBillsThisMonth(allBills: Bill[]): Bill[] {
   const today = new Date();
 
   return allBills.filter((bill) => {
-    if (!bill.lastPaidDate) return false;
+    if (!bill.lastPaidDate || bill.lastPaidDate.length < 5) return false;
     const paidDate = parseISO(bill.lastPaidDate);
+
+    if(isNaN(paidDate.getTime())) return false
     return isSameMonth(paidDate, today);
   });
 }

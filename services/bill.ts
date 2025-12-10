@@ -5,7 +5,7 @@ export type Bill = {
   frequency: string;
   startDate?: string;
   date?: string;
-  lastPaidDate?: string;
+  lastPaidDate?: string | null;
 };
 
 type UpdateBillData = Partial<Bill>; // have access to any fiels from Bill but none are required
@@ -67,4 +67,15 @@ export const updateBill = async (
         `Failed to update bill with status: ${response.status}`
     );
   }
+};
+
+// Fetch bill by id
+export const fetchBillById = async (id: string): Promise<Bill> => {
+  const response = await fetch(`${API_URL}/api/bills/${id}`);
+
+  if (!response.ok) {
+    throw new Error(`Error: Failed to fetch bill with status ${response.status}`);
+  }
+
+  return await response.json();
 };

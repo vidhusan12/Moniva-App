@@ -1,10 +1,10 @@
-import { addBilll } from "@/services/bill";
+import { addBilll, fetchBillById, updateBill } from "@/services/bill";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { router, Stack } from "expo-router";
-import React, { useState } from "react";
+import { router, Stack, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Platform,
@@ -17,17 +17,54 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const BillDetails = () => {
+  const params = useLocalSearchParams();
+  const billId = params.id as string | undefined;
+
+  console.log("Edit Screen Received Bill ID:", billId);
+
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [frequency, setFrequency] = useState("");
   const [startDate, setStartDate] = useState("");
   const [nextPayDate, setNextPayDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const frequencyOptions = ["Weekly", "Fortnightly", "Monthly", "One Time"];
 
+  useEffect(() => {
+    if (billId) {
+      setIsLoading(true);
+      const loadBill = async () => {
+        try {
+          const bill = await fetchBillById(billId);
+
+          if (bill) {
+            setAmount(bill.amount.toFixed(2));
+            setDescription(bill.description);
+            setFrequency(bill.frequency);
+
+            // // Date Picker to the current next due date(startDate)
+            const existingDate = bill.startDate
+              ? new Date(bill.startDate)
+              : new Date();
+
+            setNextPayDate(existingDate);
+          }
+        } catch (error) {
+          Alert.alert("Error", "Failed to load bill details for editing.");
+          router.replace("/bill");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      loadBill();
+    }
+  }, [billId]);
+
   const handleSubmit = async () => {
     const parsedAmount = parseFloat(amount);
+
     if (
       !parsedAmount ||
       isNaN(parsedAmount) ||
@@ -38,19 +75,27 @@ const BillDetails = () => {
       return;
     }
 
-    try {
-      await addBilll({
-        amount: parsedAmount,
-        description: description.trim(),
-        frequency: frequency,
-        startDate: nextPayDate.toISOString(),
-      });
+    const payload = {
+      amount: parsedAmount,
+      description: description.trim(),
+      frequency: frequency,
+      startDate: nextPayDate.toISOString(),
+    };
 
-      Alert.alert("Success", "Bill added!");
-      setAmount("");
-      setDescription("");
-      setFrequency("");
-      router.back();
+    try {
+      if (billId) {
+        await updateBill(billId, payload);
+        Alert.alert("Success", "Bill updated!");
+      } else {
+        await addBilll(payload);
+        Alert.alert("Success", "Bill added!");
+        // Only clear form if a NEW bill was added
+        setAmount("");
+        setDescription("");
+        setFrequency("");
+      }
+
+      router.replace("/bill");
     } catch (error) {
       Alert.alert(
         "Error",
@@ -94,12 +139,17 @@ const BillDetails = () => {
       />
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         {/* Back Button */}
-        <TouchableOpacity onPress={() => router.back()} className="p-2 ml-2">
+        <TouchableOpacity
+          onPress={() => router.replace("/bill")}
+          className="p-2 ml-2"
+        >
           <Ionicons name="close" size={28} color="black" />
         </TouchableOpacity>
         {/* Header */}
         <View className="px-5 pt-8 items-start">
-          <Text className="text-2xl font-rubik-semibold">New Bill</Text>
+          <Text className="text-2xl font-rubik-semibold">
+            {billId ? "Edit Bill" : "New Bill"}
+          </Text>
           <Text className="text-sm font-rubik-light text-gray-700 mb-4">
             Add your bill and how often you receive it
           </Text>
@@ -199,8 +249,11 @@ const BillDetails = () => {
           <TouchableOpacity
             className="bg-blue-500 px-8 py-3 rounded-lg w-48"
             onPress={handleSubmit}
+            disabled={isLoading}
           >
-            <Text className="font-rubik text-lg text-center">Add</Text>
+            <Text className="font-rubik text-lg text-center">
+              {billId ? "Update" : "Add"}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
