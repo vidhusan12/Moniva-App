@@ -5,7 +5,10 @@ export type Bill = {
   frequency: string;
   startDate?: string;
   date?: string;
+  lastPaidDate?: string;
 };
+
+type UpdateBillData = Partial<Bill>; // have access to any fiels from Bill but none are required
 
 const API_URL = "https://moniva-backend.onrender.com";
 
@@ -43,5 +46,25 @@ export const deleteBill = async (id: string): Promise<void> => {
 
   if (!response.ok) {
     throw new Error(`Failed to delete ${response.status}`);
+  }
+};
+
+// Update Bill
+export const updateBill = async (
+  id: string,
+  data: UpdateBillData
+): Promise<void> => {
+  const response = await fetch(`${API_URL}/api/bills/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json();
+    throw new Error(
+      errorBody.message ||
+        `Failed to update bill with status: ${response.status}`
+    );
   }
 };
