@@ -1,7 +1,11 @@
+import { fetchAllTransaction, Transaction } from "@/services/transaction";
+import { formatFriendlyDate } from "@/utils/mongoDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   ScrollView,
   Text,
   TextInput,
@@ -11,17 +15,47 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const transaction = () => {
-  const [transaction, setTransaction] = useState("");
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshToggle, setRefreshToggle] = useState(false);
+
+  const loadTransactions = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const transactionData = await fetchAllTransaction();
+      setTransactions(transactionData);
+    } catch (error) {
+      console.error("Failed to fetch Transactions", error);
+      Alert.alert("Error", "Failed to load Transactions");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadTransactions();
+      return () => {};
+    }, [loadTransactions, refreshToggle])
+  );
+
+  if (isLoading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-[#ffffff]">
+        <Text>Loading...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#ffffff]">
       {/* Header with title and add button */}
-      <View className="px-5 pt-8 flex-row justify-between items-center">
+      <View className="px-5 pt-3 flex-row justify-between items-center">
         <View>
-          <Text className="text-2xl font-rubik-semibold">Transactions</Text>
-          <Text className="text-sm font-rubik-light">
-            8 transactions • Last updated this afternoon
+          <Text className="text-xl font-rubik-semibold">Transactions</Text>
+          <Text className="text-xs font-rubik-light text-gray-700">
+            {transactions.length} transactions
           </Text>
         </View>
         <TouchableOpacity
@@ -35,8 +69,8 @@ const transaction = () => {
       <ScrollView>
         <View>
           {/* Search Bar */}
-          <View className="px-5 mt-4">
-            <View className="flex-row items-center bg-gray-100 rounded-full px-4 py-3">
+          <View className="px-5 mt-3">
+            <View className="flex-row items-center bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3">
               <Ionicons name="search" size={20} color="#666" />
               <TextInput
                 className="flex-1 ml-3 text-base font-rubik"
@@ -53,29 +87,74 @@ const transaction = () => {
             </View>
           </View>
           {/* Spending Month box */}
-          <View className="flex-row justify-evenly mt-5 px-5 gap-3">
-            <View className="flex-1 bg-gray-100 p-3 rounded-xl">
-              <Text className="font-rubik text-base text-gray-600">
+          <View className="flex-row justify-evenly mt-3 px-5 gap-3">
+            <View className="flex-1 bg-white rounded-xl shadow-md shadow-black/10 p-3">
+              <Text className="font-rubik text-xs text-gray-700">
                 TODAY'S SPENDING
               </Text>
-              <Text className="font-rubik-medium text-xl text-gray-600 py-3">
+              <Text className="font-rubik-semibold text-lg text-black py-2">
                 $0
               </Text>
-              <Text className="font-rubik-light text-sm text-gray-600">
+              <Text className="font-rubik-light text-xs text-gray-700">
                 • This week: $201
               </Text>
             </View>
-            <View className="flex-1 bg-gray-100 p-3 rounded-xl">
-              <Text className="font-rubik text-base text-gray-600">
+            <View className="flex-1 bg-white rounded-xl shadow-md shadow-black/10 p-3">
+              <Text className="font-rubik text-xs text-gray-700">
                 THIS MONTH
               </Text>
-              <Text className="font-rubik-medium text-xl text-gray-600 py-3">
+              <Text className="font-rubik-semibold text-lg text-black py-2">
                 $396
               </Text>
-              <Text className="font-rubik-light text-sm text-gray-600">
+              <Text className="font-rubik-light text-xs text-gray-700">
                 • Avg: $33/day
               </Text>
             </View>
+          </View>
+
+          <View className="items-start w-full px-5 mt-3 mb-6">
+            {Object.entries(
+              transactions.reduce(
+                (groups, transaction) => {
+                  const date = transaction.date || "Unknown";
+                  if (!groups[date]) {
+                    groups[date] = [];
+                  }
+                  groups[date].push(transaction);
+                  return groups;
+                },
+                {} as Record<string, Transaction[]>
+              )
+            ).map(([date, transactionsForDate]) => (
+              <View key={date} className="w-full mb-4">
+                {/* Date - shown once for all transactions on this date */}
+                <Text className="font-rubik-medium text-sm text-black-300 mb-2">
+                  {formatFriendlyDate(date)}
+                </Text>
+
+                {/* All transactions for this date */}
+                {transactionsForDate.map((transaction) => (
+                  <View
+                    key={transaction._id}
+                    className="bg-white rounded-2xl shadow-md shadow-black/10 p-3 w-full mb-2"
+                  >
+                    <View className="flex-row justify-between items-center">
+                      <View className="flex-1">
+                        <Text className="font-rubik text-base text-black">
+                          {transaction.description}
+                        </Text>
+                        <Text className="text-xs font-rubik text-gray-700 mt-1">
+                          {transaction.category}
+                        </Text>
+                      </View>
+                      <Text className="font-rubik-semibold text-lg text-black ml-3">
+                        ${transaction.amount}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ))}
           </View>
         </View>
       </ScrollView>

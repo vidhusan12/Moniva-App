@@ -194,8 +194,8 @@ const BillDetails = () => {
   return (
     <SafeAreaView className="flex-1 bg-[#ffffff]">
       {/* Header with title and add button */}
-      <View className="px-5 pt-8 flex-row justify-between items-center">
-        <Text className="text-2xl font-rubik-semibold">Bills</Text>
+      <View className="px-5 pt-3 flex-row justify-between items-center">
+        <Text className="text-xl font-rubik-semibold">Bills</Text>
         <TouchableOpacity
           onPress={() => router.push("/newBill")}
           className="p-2"
@@ -206,14 +206,16 @@ const BillDetails = () => {
 
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         {/* Summary card: total unpaid bills and stats */}
-        <View className="items-start w-full px-5 mt-4 mb-6">
-          <View className="flex-row justify-between w-full max-w-md bg-white rounded-2xl shadow-md shadow-black/10 px-4 py-4">
+        <View className="items-start w-full px-5 mt-3 mb-4">
+          <View className="flex-row justify-between w-full bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3">
             <View>
-              <Text className="font-rubik">Total Unpaid Bills</Text>
-              <Text className="font-medium text-4xl py-4">
+              <Text className="font-rubik text-xs text-gray-700">
+                Total Unpaid Bills
+              </Text>
+              <Text className="font-rubik-semibold text-3xl py-2 text-black">
                 ${totalUnpaidAmount.toFixed(2)}
               </Text>
-              <Text className="font-rubik">
+              <Text className="font-rubik-light text-xs text-gray-700">
                 {unpaidCount} pending - {paidCount} paid this month
               </Text>
             </View>
@@ -224,52 +226,54 @@ const BillDetails = () => {
         </View>
 
         {/* Section header: Upcoming Bills */}
-        <View className="flex-row justify-between w-full max-w-md px-4">
-          <Text className="font-rubik-light text-xl">Upcoming Bills</Text>
-          <Text className="bg-red-100 py-1 px-2 rounded-full font-rubik text-red-600">
+        <View className="flex-row justify-between w-full px-5">
+          <Text className="font-rubik-medium text-sm text-black-300">
+            Upcoming Bills
+          </Text>
+          <Text className="bg-red-100 py-1 px-2 rounded-full font-rubik text-xs text-red-600">
             {unpaidCount} unpaid
           </Text>
         </View>
 
         {/* List of unpaid bills (overdue shown first, then due this month) */}
-        <View className="items-start w-full px-5 mt-4 mb-6">
+        <View className="items-start w-full px-5 mt-2 mb-4">
           {finalUnpaidDisplayList.map((bill) => (
             <View
               key={bill._id}
-              className={`w-full max-w-md rounded-2xl shadow-md shadow-black/10 mb-5 pb-5 ${
+              className={`w-full rounded-2xl shadow-md shadow-black/10 mb-3 pb-3 ${
                 bill.isOverdue ? "bg-red-50" : "bg-white"
               }`}
             >
               {/* Bill info row: description, frequency, due date, amount */}
-              <View className="flex-row justify-between p-5">
-                <View>
-                  <Text className="font-rubik-medium text-xl">
+              <View className="flex-row justify-between p-3">
+                <View className="flex-1">
+                  <Text className="font-rubik-medium text-base text-black">
                     {bill.description}
                   </Text>
-                  <View className="flex-row gap-3 items-center pt-2">
-                    <Text className="bg-gray-200 rounded-md font-rubik-light p-1">
+                  <View className="flex-row gap-2 items-center pt-1">
+                    <Text className="bg-gray-200 rounded-md font-rubik-light text-xs p-1">
                       {bill.frequency}
                     </Text>
                     {bill.isOverdue ? (
-                      <Text className="font-semibold text-red-600">
+                      <Text className="font-rubik-semibold text-xs text-red-600">
                         Overdue: Pay Now!
                       </Text>
                     ) : (
-                      <Text className="font-light">
+                      <Text className="font-rubik-light text-xs text-gray-700">
                         Due: {formatMongoDate(bill.startDate || "")}
                       </Text>
                     )}
                   </View>
                 </View>
-                <View className="justify-center">
-                  <Text className="font-rubik-medium text-2xl text-red-500">
+                <View className="justify-center ml-2">
+                  <Text className="font-rubik-semibold text-lg text-red-500">
                     ${bill.amount.toFixed(2)}
                   </Text>
                 </View>
               </View>
 
               {/* Action buttons: Edit, Paid, Delete */}
-              <View className="flex-row justify-evenly">
+              <View className="flex-row justify-evenly px-2">
                 <TouchableOpacity
                   onPress={() =>
                     router.push({
@@ -277,26 +281,30 @@ const BillDetails = () => {
                       params: { id: bill._id },
                     })
                   }
-                  className="flex-row items-center gap-2 bg-blue-100 px-6 py-3 rounded-lg"
+                  className="flex-row items-center gap-1 bg-blue-100 px-4 py-2 rounded-lg"
                 >
-                  <SimpleLineIcons name="pencil" size={16} color="blue" />
-                  <Text className="font-rubik text-blue-700">Edit</Text>
+                  <SimpleLineIcons name="pencil" size={14} color="blue" />
+                  <Text className="font-rubik text-xs text-blue-700">Edit</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={() => handleMarkPaid(bill)}
-                  className="flex-row items-center gap-2 bg-green-100 px-6 py-3 rounded-lg"
+                  className="flex-row items-center gap-1 bg-green-100 px-4 py-2 rounded-lg"
                 >
-                  <Ionicons name="checkmark" size={16} color="green" />
-                  <Text className="font-rubik text-green-700">Paid</Text>
+                  <Ionicons name="checkmark" size={14} color="green" />
+                  <Text className="font-rubik text-xs text-green-700">
+                    Paid
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={() => handleDelete(bill._id)}
-                  className="flex-row items-center gap-2 bg-red-100 px-6 py-3 rounded-lg"
+                  className="flex-row items-center gap-1 bg-red-100 px-4 py-2 rounded-lg"
                 >
-                  <Ionicons name="trash-outline" size={16} color="#ef233c" />
-                  <Text className="font-rubik text-red-700">Delete</Text>
+                  <Ionicons name="trash-outline" size={14} color="#ef233c" />
+                  <Text className="font-rubik text-xs text-red-700">
+                    Delete
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -304,54 +312,58 @@ const BillDetails = () => {
         </View>
 
         {/* Section header: Paid Bills */}
-        <View className="flex-row justify-between w-full max-w-md px-4">
-          <Text className="font-rubik-light text-xl">Paid This Month</Text>
-          <Text className="bg-green-100 py-1 px-2 rounded-full font-rubik text-green-600">
+        <View className="flex-row justify-between w-full px-5">
+          <Text className="font-rubik-medium text-sm text-black-300">
+            Paid This Month
+          </Text>
+          <Text className="bg-green-100 py-1 px-2 rounded-full font-rubik text-xs text-green-600">
             {paidCount} completed
           </Text>
         </View>
 
         {/* List of paid bills */}
-        <View className="items-start w-full px-5 mt-4 mb-6">
+        <View className="items-start w-full px-5 mt-2 mb-6">
           {paidBillsThisMonth.map((bill) => (
             <View
               key={bill._id}
-              className="w-full max-w-md bg-green-50 rounded-2xl shadow-md shadow-black/10 mb-5 pb-5 opacity-80"
+              className="w-full bg-green-50 rounded-2xl shadow-md shadow-black/10 mb-3 pb-3 opacity-80"
             >
               {/* Bill info row: strikethrough description, paid badge, paid date */}
-              <View className="flex-row justify-between p-5">
-                <View>
-                  <Text className="font-rubik-medium text-xl line-through">
+              <View className="flex-row justify-between p-3">
+                <View className="flex-1">
+                  <Text className="font-rubik-medium text-base text-black line-through">
                     {bill.description}
                   </Text>
-                  <View className="flex-row gap-3 items-center pt-2">
-                    <Text className="bg-green-200 rounded-md font-rubik-light p-1">
+                  <View className="flex-row gap-2 items-center pt-1">
+                    <Text className="bg-green-200 rounded-md font-rubik-light text-xs p-1">
                       PAID
                     </Text>
-                    <Text className="font-light">
+                    <Text className="font-rubik-light text-xs text-gray-700">
                       Paid on: {formatMongoDate(bill.lastPaidDate || "")}
                     </Text>
                   </View>
                 </View>
-                <View className="justify-center">
-                  <Text className="font-rubik-medium text-2xl text-gray-500 line-through">
+                <View className="justify-center ml-2">
+                  <Text className="font-rubik-semibold text-lg text-gray-500 line-through">
                     ${bill.amount.toFixed(2)}
                   </Text>
                 </View>
               </View>
 
               {/* Action buttons: Mark as Unpaid, Edit */}
-              <View className="flex-row justify-evenly pt-2 pb-5">
+              <View className="flex-row justify-evenly px-2">
                 <TouchableOpacity
                   onPress={() => handleMarkUnpaid(bill)}
-                  className="flex-row items-center gap-2 bg-yellow-100 px-6 py-3 rounded-lg"
+                  className="flex-row items-center gap-1 bg-yellow-100 px-4 py-2 rounded-lg"
                 >
                   <Ionicons
                     name="close-circle-outline"
-                    size={16}
+                    size={14}
                     color="#d90429"
                   />
-                  <Text className="font-rubik text-red-700">Unpaid</Text>
+                  <Text className="font-rubik text-xs text-red-700">
+                    Unpaid
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -361,15 +373,15 @@ const BillDetails = () => {
                       params: { id: bill._id },
                     })
                   }
-                  className="flex-row items-center gap-2 bg-blue-100 px-6 py-3 rounded-lg"
+                  className="flex-row items-center gap-1 bg-blue-100 px-4 py-2 rounded-lg"
                 >
-                  <SimpleLineIcons name="pencil" size={16} color="blue" />
-                  <Text className="font-rubik text-blue-700">Edit</Text>
+                  <SimpleLineIcons name="pencil" size={14} color="blue" />
+                  <Text className="font-rubik text-xs text-blue-700">Edit</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Next due date footer */}
-              <Text className="text-center text-gray-400 font-light pb-2">
+              <Text className="text-center text-gray-400 font-rubik-light text-xs pt-2 pb-1">
                 Next due: {formatMongoDate(bill.startDate || "")}
               </Text>
             </View>

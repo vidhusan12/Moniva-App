@@ -21,6 +21,7 @@ const newTransaction = () => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const categories = [
     { name: "Food", icon: "fast-food" },
@@ -33,6 +34,8 @@ const newTransaction = () => {
     { name: "Travel", icon: "airplane" },
     { name: "Other", icon: "ellipsis-horizontal" },
   ];
+
+  
 
   function handleCancel() {}
 

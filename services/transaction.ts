@@ -1,7 +1,8 @@
 export type Transaction = {
-  id?: string;
+  _id?: string;
   description: string;
   amount: number;
+  category: string;
   date?: string;
 };
 

@@ -64,3 +64,35 @@ export function calculateDaysUntilPay(nextPayIsoDate: string): string {
     return "Date error";
   }
 }
+
+/**
+ * Formats a date to a friendly display:
+ * - "Today" for today's date
+ * - "Yesterday" for yesterday
+ * - "DD/MM/YYYY" for older dates
+ */
+export function formatFriendlyDate(
+  dateString: string | null | undefined
+): string {
+  if (!dateString) {
+    return "";
+  }
+
+  const dateObject = parseISO(dateString);
+
+  if (isNaN(dateObject.getTime())) {
+    return "";
+  }
+
+  const today = startOfDay(new Date());
+  const inputDate = startOfDay(dateObject);
+  const daysDiff = differenceInDays(today, inputDate);
+
+  if (daysDiff === 0) {
+    return "Today";
+  } else if (daysDiff === 1) {
+    return "Yesterday";
+  } else {
+    return format(inputDate, "dd/MM/yyyy");
+  }
+}
