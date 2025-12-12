@@ -1,4 +1,5 @@
 import { addBilll, fetchBillById, updateBill } from "@/services/bill";
+import { formatDateForMongo } from "@/utils/mongoDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -17,15 +18,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const BillDetails = () => {
+  // Note: Should probably be named NewBillScreen or similar
   const params = useLocalSearchParams();
   const billId = params.id as string | undefined;
-
-  console.log("Edit Screen Received Bill ID:", billId);
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [frequency, setFrequency] = useState("");
-  const [startDate, setStartDate] = useState("");
+  // startDate state was unused and is removed for cleanup
   const [nextPayDate, setNextPayDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,7 +44,7 @@ const BillDetails = () => {
             setDescription(bill.description);
             setFrequency(bill.frequency);
 
-            // // Date Picker to the current next due date(startDate)
+            // Set Date Picker to the current next due date (startDate)
             const existingDate = bill.startDate
               ? new Date(bill.startDate)
               : new Date();
@@ -75,24 +75,34 @@ const BillDetails = () => {
       return;
     }
 
+    // Convert nextPayDate to ISO string (YYYY-MM-DDTHH:mm:ss.sssZ) for storage
     const payload = {
       amount: parsedAmount,
       description: description.trim(),
       frequency: frequency,
-      startDate: nextPayDate.toISOString(),
+      startDate: formatDateForMongo(nextPayDate),
     };
 
     try {
       if (billId) {
-        await updateBill(billId, payload);
+        // When updating, clear lastPaidDate using "" to ensure the bill
+        // is re-evaluated by the display logic and utility functions.
+        const updatePayload = {
+          ...payload,
+          // CRITICAL FIX: Use "" instead of null for clearing the date status
+          lastPaidDate: "",
+        };
+
+        await updateBill(billId, updatePayload);
         Alert.alert("Success", "Bill updated!");
       } else {
+        // When adding a new bill, lastPaidDate is naturally absent/cleared.
         await addBilll(payload);
         Alert.alert("Success", "Bill added!");
-        // Only clear form if a NEW bill was added
         setAmount("");
         setDescription("");
         setFrequency("");
+        setNextPayDate(new Date());
       }
 
       router.replace("/bill");
@@ -106,7 +116,6 @@ const BillDetails = () => {
 
   const onChangeDate = (event: DateTimePickerEvent, selectedDate?: Date) => {
     // 1. On Android, close the picker immediately after the user makes a selection
-    // The 'default' display style on Android automatically closes when a date is picked.
     if (Platform.OS === "android") {
       setShowDatePicker(false);
     }
@@ -117,6 +126,7 @@ const BillDetails = () => {
     }
 
     if (Platform.OS === "ios" && selectedDate) {
+      // For iOS, the picker stays open, so we update the date dynamically
       setNextPayDate(selectedDate);
     }
 
@@ -125,10 +135,18 @@ const BillDetails = () => {
     }
   };
 
-  // 5. Function to format the Date object for display (same as before)
+  // Function to format the Date object for display (same as before)
   const formatDateForDisplay = (date: Date) => {
     return date.toLocaleDateString("en-GB");
   };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-[#ffffff]">
+        <Text>Loading...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#ffffff]">
@@ -204,7 +222,7 @@ const BillDetails = () => {
           </View>
         </View>
 
-        {/* 7. Date Picker Component (Conditional Rendering) */}
+        {/* Date Picker Component (Conditional Rendering) */}
         {showDatePicker && (
           <DateTimePicker
             testID="dateTimePicker"

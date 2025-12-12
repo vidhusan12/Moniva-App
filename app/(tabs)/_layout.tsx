@@ -11,7 +11,7 @@ export default function TabLayout() {
         headerShadowVisible: false,
         headerTintColor: "#fff",
         tabBarStyle: {
-          backgroundColor: "#ffffff]",
+          backgroundColor: "#ffffff",
         },
       }}
     >
@@ -35,6 +35,19 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? "trending-up" : "trending-up-outline"}
+              color={color}
+              size={24}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="transaction"
+        options={{
+          title: "Transaction",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "swap-horizontal" : "swap-horizontal-outline"}
               color={color}
               size={24}
             />

@@ -5,7 +5,7 @@ export type Bill = {
   frequency: string;
   startDate?: string;
   date?: string;
-  lastPaidDate?: string | null;
+  lastPaidDate?: string;
 };
 
 type UpdateBillData = Partial<Bill>; // have access to any fiels from Bill but none are required

@@ -1,5 +1,5 @@
 import { Bill, fetchAllBill } from "@/services/bill";
-import { calculateWeeklyBillTotal } from "@/utils/billUtils";
+import { calculateBillTotal } from "@/utils/billUtils";
 import { getCurrentWeekOfMonth, getWeekDateRange } from "@/utils/dateUtils";
 import { useFocusEffect } from "expo-router";
 import React, { useState } from "react";
@@ -54,7 +54,7 @@ const index = () => {
   const weekylyIncome = calculateWeeklyIncome();
 
   // Bills
-  const totalMonthlyBill = calculateWeeklyBillTotal(bills);
+  const totalMonthlyBill = calculateBillTotal(bills);
   const recommendedWeeklyBudget = totalMonthlyBill / 4;
   const remainingBillsThisMonth = totalMonthlyBill - recommendedWeeklyBudget;
 
