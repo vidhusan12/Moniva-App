@@ -1,5 +1,12 @@
 import { fetchAllTransaction, Transaction } from "@/services/transaction";
 import { formatFriendlyDate } from "@/utils/mongoDate";
+import {
+  calculateAverageDailySpending,
+  calculateMonthlySpending,
+  calculateTodaySpending,
+  calculateTransactionTotal,
+  calculateWeeklySpending,
+} from "@/utils/transactionUtils";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
@@ -48,6 +55,13 @@ const transaction = () => {
     );
   }
 
+  // Total This Month
+  const monthTotal = calculateMonthlySpending(transactions);
+  const averagePerDay = calculateAverageDailySpending(transactions);
+  const todaysSpending = calculateTodaySpending(transactions);
+  const weekTotal = calculateWeeklySpending(transactions);
+  const numOfTransaction = calculateTransactionTotal(transactions);
+
   return (
     <SafeAreaView className="flex-1 bg-[#ffffff]">
       {/* Header with title and add button */}
@@ -55,7 +69,7 @@ const transaction = () => {
         <View>
           <Text className="text-xl font-rubik-semibold">Transactions</Text>
           <Text className="text-xs font-rubik-light text-gray-700">
-            {transactions.length} transactions
+            {numOfTransaction} transactions
           </Text>
         </View>
         <TouchableOpacity
@@ -93,10 +107,10 @@ const transaction = () => {
                 TODAY'S SPENDING
               </Text>
               <Text className="font-rubik-semibold text-lg text-black py-2">
-                $0
+                ${todaysSpending.toFixed(2)}
               </Text>
               <Text className="font-rubik-light text-xs text-gray-700">
-                • This week: $201
+                • This week: ${weekTotal.toFixed(2)}
               </Text>
             </View>
             <View className="flex-1 bg-white rounded-xl shadow-md shadow-black/10 p-3">
@@ -104,10 +118,10 @@ const transaction = () => {
                 THIS MONTH
               </Text>
               <Text className="font-rubik-semibold text-lg text-black py-2">
-                $396
+                ${monthTotal.toFixed(2)}
               </Text>
               <Text className="font-rubik-light text-xs text-gray-700">
-                • Avg: $33/day
+                • Avg: ${averagePerDay.toFixed(2)}/day
               </Text>
             </View>
           </View>
