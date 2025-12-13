@@ -7,27 +7,57 @@ import { isThisMonth, isThisWeek, isToday, parseISO } from "date-fns";
 
 /**
  * Groups transactions by date.
- * Returns an object where keys are dates and values are arrays of transactions.
+ * Returns an array of objects with date and transactions for that date.
+ * Sorted with newest dates first.
  */
-export function groupTransactionsByDate(
-  transactions: Transaction[]
-): Record<string, Transaction[]> {
-  // Your code here
-  return {};
+export function groupTransactionsByDate(transactions: Transaction[]): Array<{
+  date: string;
+  transactions: Transaction[];
+}> {
+  // Step 1: Create groups object
+  const groups: Record<string, Transaction[]> = {};
+
+  // Step 2: Loop through all transactions and group by date
+  for (const transaction of transactions) {
+    const date = transaction.date || "Unknown";
+
+    // If this date doesn't exist yet, create an empty array
+    if (!groups[date]) {
+      groups[date] = [];
+    }
+
+    // Add this transaction to the date's array
+    groups[date].push(transaction);
+  }
+
+  // Step 3: Convert to array format
+  const groupedArray = [];
+  for (const date in groups) {
+    groupedArray.push({
+      date: date,
+      transactions: groups[date],
+    });
+  }
+
+  // Step 4: Sort by date (newest first)
+  groupedArray.sort((a, b) => {
+    const dateA = parseISO(a.date);
+    const dateB = parseISO(b.date);
+    return dateB.getTime() - dateA.getTime(); // newest first
+  });
+
+  return groupedArray;
 }
-
-
 
 /**
  * Calculates the total amount for a list of transactions.
  */
 export function calculateTransactionTotal(transactions: Transaction[]): number {
-
   const TransactionTotalMonth = transactions.filter((transaction) => {
-    return transaction.date && isThisMonth(parseISO(transaction.date))
+    return transaction.date && isThisMonth(parseISO(transaction.date));
   });
-  
-  return TransactionTotalMonth.length
+
+  return TransactionTotalMonth.length;
 }
 
 /**
@@ -67,9 +97,12 @@ export function calculateMonthlySpending(transactions: Transaction[]): number {
     return transaction.date && isThisMonth(parseISO(transaction.date));
   });
 
-  let monthTransactions = TotalMonthSpending.reduce((accumulator, transaction) => {
-    return accumulator + transaction.amount;
-  }, 0);
+  let monthTransactions = TotalMonthSpending.reduce(
+    (accumulator, transaction) => {
+      return accumulator + transaction.amount;
+    },
+    0
+  );
   return monthTransactions;
 }
 

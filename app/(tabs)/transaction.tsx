@@ -6,6 +6,7 @@ import {
   calculateTodaySpending,
   calculateTransactionTotal,
   calculateWeeklySpending,
+  groupTransactionsByDate,
 } from "@/utils/transactionUtils";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -127,27 +128,15 @@ const transaction = () => {
           </View>
 
           <View className="items-start w-full px-5 mt-3 mb-6">
-            {Object.entries(
-              transactions.reduce(
-                (groups, transaction) => {
-                  const date = transaction.date || "Unknown";
-                  if (!groups[date]) {
-                    groups[date] = [];
-                  }
-                  groups[date].push(transaction);
-                  return groups;
-                },
-                {} as Record<string, Transaction[]>
-              )
-            ).map(([date, transactionsForDate]) => (
-              <View key={date} className="w-full mb-4">
+            {groupTransactionsByDate(transactions).map((group) => (
+              <View key={group.date} className="w-full mb-4">
                 {/* Date - shown once for all transactions on this date */}
                 <Text className="font-rubik-medium text-sm text-black-300 mb-2">
-                  {formatFriendlyDate(date)}
+                  {formatFriendlyDate(group.date)}
                 </Text>
 
                 {/* All transactions for this date */}
-                {transactionsForDate.map((transaction) => (
+                {group.transactions.map((transaction) => (
                   <View
                     key={transaction._id}
                     className="bg-white rounded-2xl shadow-md shadow-black/10 p-3 w-full mb-2"

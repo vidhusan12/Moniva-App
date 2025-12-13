@@ -1,8 +1,11 @@
+import { addTransaction } from "@/services/transaction";
+import { formatDateForMongo } from "@/utils/mongoDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   Platform,
   ScrollView,
   Text,
@@ -13,10 +16,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const newTransaction = () => {
-
   const params = useLocalSearchParams();
-  const transactionId = params.id as string | undefined
+  const transactionId = params.id as string | undefined;
 
+  const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [date, setDate] = useState(new Date());
@@ -35,11 +38,50 @@ const newTransaction = () => {
     { name: "Other", icon: "ellipsis-horizontal" },
   ];
 
-  
+  function handleCancel() {
+    router.back();
+  }
 
-  function handleCancel() {}
+  async function handleAdd() {
+    // 1 Check for required fields
+    if (!title || !amount || !selectedCategory || !date) {
+      Alert.alert("Missing Information", "Please fill in all the information.");
+      return;
+    }
 
-  function handleAdd() {}
+    // 2. Check if amount is a valid number (and convert it)
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      Alert.alert(
+        "Invalid Amount",
+        "Please enter a valid amount greater than zero."
+      );
+      return;
+    }
+
+    // 3. Format the data object
+    const newTransactionData = {
+      description: title,
+      amount: numericAmount,
+      category: selectedCategory,
+      // Convert the Date object to a standardized string for the backend
+      date: formatDateForMongo(date),
+      // Assuming a user ID might be needed, but we'll keep it simple for now
+    };
+
+    //API Call and State Handling
+    try {
+      setIsLoading(true);
+      await addTransaction(newTransactionData);
+      Alert.alert("Success", "Transaction added successfully!");
+      router.replace("/transaction");
+    } catch (error) {
+      console.error("Failed to add transaction:", error);
+      Alert.alert("Error", "Failed to save transaction. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#ffffff]">
@@ -71,8 +113,8 @@ const newTransaction = () => {
             <TextInput
               className="text-base font-rubik"
               placeholder="e.g. Food, Shopping"
-              value={amount}
-              onChangeText={setAmount}
+              value={title}
+              onChangeText={setTitle}
               placeholderTextColor="#999"
               style={{ minHeight: 20 }}
             />
@@ -84,7 +126,8 @@ const newTransaction = () => {
           <View className="bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3">
             <TextInput
               className="text-base font-rubik"
-              placeholder="e.g. Food, Shopping"
+              placeholder="Enter Amount"
+              keyboardType="numeric"
               value={amount}
               onChangeText={setAmount}
               placeholderTextColor="#999"
@@ -168,10 +211,11 @@ const newTransaction = () => {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleAdd}
+              disabled={isLoading}
               className="flex-1 bg-blue-500 rounded-xl py-3 items-center"
             >
               <Text className="text-sm font-rubik-medium text-white">
-                Add Transaction
+                {isLoading ? "Saving..." : "Add Transaction"}
               </Text>
             </TouchableOpacity>
           </View>
