@@ -68,74 +68,78 @@ const index = () => {
     <SafeAreaView>
       <ScrollView>
         {/* Title BOX */}
-        <View className="px-4 pt-3">
-          <Text className="font-rubik-bold text-2xl">Good morning, Vidhu</Text>
-          <Text className="text-base font-rubik-light text-gray-700 mb-4">
+        <View className="px-5 pt-3">
+          <Text className="font-rubik-semibold text-xl">
+            Good morning, Vidhu
+          </Text>
+          <Text className="text-xs font-rubik-light text-gray-700 mb-3">
             Here is your spending for this week
           </Text>
         </View>
 
-        {/* Current Week Box */}
-        <View className=" w-2/6 ml-5 bg-white rounded-full p-2  border border-gray-200 mb-4">
-          <Text className="text-center font-rubik mb-1">This Week</Text>
-          <Text className=" text-center font-rubik-light text-sm text-gray-700">
-            {dateRange}
+        {/* Week Badge */}
+        <View className="flex-row items-center px-5 mb-3">
+          <Text className="font-rubik-medium text-sm text-black">
+            Week {currentWeekOfMonth}
+          </Text>
+          <Text className="font-rubik-light text-xs text-gray-700 ml-2">
+            • {dateRange}
           </Text>
         </View>
 
-        {/* The Main Card Box */}
-        <View className="py-4 px-4 bg-[#4361ee] mx-3 rounded-xl">
-          <View className="flex-row justify-between ">
-            <Text className="font-rubik text-[#edf6f9] text-lg">
-              This Week balance
-            </Text>
-            <Text className="font-rubik text-[#edf6f9] text-lg">
-              Week {currentWeekOfMonth}
-            </Text>
-          </View>
-          {/* Balance Box */}
-          <View className="mt-4">
-            <Text className="font-rubik text-[#edf6f9] text-base">
-              Total balance
-            </Text>
-            <Text className="font-rubik-medium text-[#edf6f9] text-2xl">
-              ${calculateToalBalance().toFixed(2)}
-            </Text>
-            <Text className="font-rubik text-[#edf6f9] text-sm mt-5">
-              This is everything you have across your accounts right now.
-            </Text>
-          </View>
-          {/* Income Information Box */}
-          <View className="flex-row justify-between mt-4">
-            {/* LEFT Column */}
-            <View className="flex-1">
-              <Text className="font-rubik text-[#edf6f9] text-sm">
-                Paid this week
-              </Text>
-              <Text className="font-rubik-medium text-[#70e000] text-lg mb-3">
-                ${weekylyIncome}
-              </Text>
-              <Text className="font-rubik text-[#edf6f9] text-sm">
-                Put aside for bills
-              </Text>
-              <Text className="font-rubik-medium text-[#ffd000] text-lg mb-3">
-                ${recommendedWeeklyBudget.toFixed(2)}
-              </Text>
+        {/* Main Balance Card with Stats */}
+        <View className="mx-5 mb-4 bg-white rounded-2xl shadow-md shadow-black/10 p-4">
+          {/* Balance Section */}
+          <Text className="font-rubik text-xs text-gray-700">
+            Total Balance
+          </Text>
+          <Text className="font-rubik-semibold text-4xl text-black py-2">
+            ${calculateToalBalance().toFixed(2)}
+          </Text>
+          <Text className="font-rubik-light text-xs text-gray-700 mb-4">
+            Available for spending this week
+          </Text>
+
+          {/* Stats Grid */}
+          <View className="gap-2">
+            {/* Row 1 */}
+            <View className="flex-row gap-2">
+              <View className="flex-1 bg-green-50 rounded-xl p-3 border border-green-200">
+                <Text className="font-rubik text-xs text-gray-700">
+                  Paid This Week
+                </Text>
+                <Text className="font-rubik-semibold text-base text-green-600 pt-1">
+                  ${weekylyIncome.toFixed(2)}
+                </Text>
+              </View>
+              <View className="flex-1 bg-yellow-50 rounded-xl p-3 border border-yellow-200">
+                <Text className="font-rubik text-xs text-gray-700">
+                  For Bills
+                </Text>
+                <Text className="font-rubik-semibold text-base text-yellow-600 pt-1">
+                  ${recommendedWeeklyBudget.toFixed(2)}
+                </Text>
+              </View>
             </View>
-            {/* RIGHT Column */}
-            <View>
-              <Text className="font-rubik text-[#edf6f9] text-sm">
-                Put aside for savings
-              </Text>
-              <Text className="font-rubik-medium text-[#80b918] text-lg mb-3">
-                $90.00
-              </Text>
-              <Text className="font-rubik text-[#edf6f9] text-sm">
-                Remaining Bills this Month
-              </Text>
-              <Text className="font-rubik-medium text-[#e5383b] text-lg mb-3">
-                ${remainingBillsThisMonth.toFixed(2)}
-              </Text>
+
+            {/* Row 2 */}
+            <View className="flex-row gap-2">
+              <View className="flex-1 bg-blue-50 rounded-xl p-3 border border-blue-200">
+                <Text className="font-rubik text-xs text-gray-700">
+                  For Savings
+                </Text>
+                <Text className="font-rubik-semibold text-base text-blue-600 pt-1">
+                  $90.00
+                </Text>
+              </View>
+              <View className="flex-1 bg-red-50 rounded-xl p-3 border border-red-200">
+                <Text className="font-rubik text-xs text-gray-700">
+                  Remaining Bills
+                </Text>
+                <Text className="font-rubik-semibold text-base text-red-600 pt-1">
+                  ${remainingBillsThisMonth.toFixed(2)}
+                </Text>
+              </View>
             </View>
           </View>
         </View>

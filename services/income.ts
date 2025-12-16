@@ -5,8 +5,11 @@ export type Income = {
   description: string;
   frequency: string;
   startDate?: string;
+  originalDueDate?: string;
   date?: string;
 };
+
+type UpdateIncomeData = Partial<Income>;
 
 // Your backend URL
 const API_URL = "https://moniva-backend.onrender.com";
@@ -37,6 +40,17 @@ export const fetchAllIncome = async (): Promise<Income[]> => {
   return await response.json();
 };
 
+// Get single income from database
+export const fetchIncomeById = async (id: string): Promise<Income> => {
+  const response = await fetch(`${API_URL}/api/incomes/${id}`);
+
+  if (!response.ok) {
+    throw new Error(`Error: ${response.status}`);
+  }
+
+  return await response.json();
+};
+
 // Delete income from database
 export const deleteIncome = async (id: string): Promise<void> => {
   const response = await fetch(`${API_URL}/api/incomes/${id}`, {
@@ -46,4 +60,26 @@ export const deleteIncome = async (id: string): Promise<void> => {
   if (!response.ok) {
     throw new Error(`Failed to delete: ${response.status}`);
   }
+};
+
+// Update income
+export const updateIncome = async (
+  id: string,
+  data: UpdateIncomeData
+): Promise<Income> => {
+  const response = await fetch(`${API_URL}/api/incomes/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json();
+    throw new Error(
+      errorBody.message ||
+        `Failed to update income with status: ${response.status}`
+    );
+  }
+
+  return await response.json();
 };

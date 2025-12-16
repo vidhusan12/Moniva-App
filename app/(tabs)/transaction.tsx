@@ -1,4 +1,9 @@
-import { fetchAllTransaction, Transaction } from "@/services/transaction";
+import SwipeableRow from "@/components/SwipeableRow";
+import {
+  deleteTransaction,
+  fetchAllTransaction,
+  Transaction,
+} from "@/services/transaction";
 import { formatFriendlyDate } from "@/utils/mongoDate";
 import {
   calculateAverageDailySpending,
@@ -47,6 +52,34 @@ const transaction = () => {
       return () => {};
     }, [loadTransactions, refreshToggle])
   );
+
+  const handleDelete = async (id?: string) => {
+    if (!id) {
+      Alert.alert("Error", "No ID Provided");
+      return;
+    }
+
+    Alert.alert(
+      "Confirm Delete",
+      "Are you sure you want to delete this transaction permanently?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          onPress: async () => {
+            try {
+              await deleteTransaction(id);
+              setRefreshToggle((prev) => !prev);
+            } catch (error) {
+              console.error("Deletion failed:", error);
+              Alert.alert("Error", "Failed to delete transaction");
+            }
+          },
+          style: "destructive",
+        },
+      ]
+    );
+  };
 
   if (isLoading) {
     return (
@@ -137,24 +170,32 @@ const transaction = () => {
 
                 {/* All transactions for this date */}
                 {group.transactions.map((transaction) => (
-                  <View
+                  <SwipeableRow
                     key={transaction._id}
-                    className="bg-white rounded-2xl shadow-md shadow-black/10 p-3 w-full mb-2"
+                    onSwipeLeft={() => handleDelete(transaction._id)}
+                    onSwipeRight={() =>
+                      router.push({
+                        pathname: "/newTransaction",
+                        params: { id: transaction._id },
+                      })
+                    }
                   >
-                    <View className="flex-row justify-between items-center">
-                      <View className="flex-1">
-                        <Text className="font-rubik text-base text-black">
-                          {transaction.description}
-                        </Text>
-                        <Text className="text-xs font-rubik text-gray-700 mt-1">
-                          {transaction.category}
+                    <View className="bg-white rounded-2xl shadow-md shadow-black/10 p-3 w-full mb-2">
+                      <View className="flex-row justify-between items-center">
+                        <View className="flex-1">
+                          <Text className="font-rubik text-base text-black">
+                            {transaction.description}
+                          </Text>
+                          <Text className="text-xs font-rubik text-gray-700 mt-1">
+                            {transaction.category}
+                          </Text>
+                        </View>
+                        <Text className="font-rubik-semibold text-lg text-black ml-3">
+                          ${transaction.amount}
                         </Text>
                       </View>
-                      <Text className="font-rubik-semibold text-lg text-black ml-3">
-                        ${transaction.amount}
-                      </Text>
                     </View>
-                  </View>
+                  </SwipeableRow>
                 ))}
               </View>
             ))}

@@ -4,6 +4,7 @@ export type Transaction = {
   amount: number;
   category: string;
   date?: string;
+  
 };
 
 type UpdateTransactionData = Partial<Transaction>;
@@ -42,7 +43,7 @@ export const fetchAllTransaction = async (): Promise<Transaction[]> => {
 export const fetchTransactionById = async (
   id: string
 ): Promise<Transaction> => {
-  const response = await fetch(`${API_URL}/api/transactions`);
+  const response = await fetch(`${API_URL}/api/transactions/${id}`);
 
   if (!response.ok) {
     throw new Error(`Error: ${response.status}`);
@@ -53,7 +54,12 @@ export const fetchTransactionById = async (
 
 // Delete transaction from database
 export const deleteTransaction = async (id: string): Promise<void> => {
-  const response = await fetch(`${API_URL}/api/transactions`);
+
+
+  const response = await fetch(`${API_URL}/api/transactions/${id}`, {
+    method: "DELETE",
+  });
+
 
   if (!response.ok) {
     throw new Error(`Error: Failed to delete transaction, ${response.status}`);

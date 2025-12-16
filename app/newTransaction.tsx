@@ -1,9 +1,13 @@
-import { addTransaction } from "@/services/transaction";
+import {
+  addTransaction,
+  fetchTransactionById,
+  updateTransaction,
+} from "@/services/transaction";
 import { formatDateForMongo } from "@/utils/mongoDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Platform,
@@ -37,6 +41,36 @@ const newTransaction = () => {
     { name: "Travel", icon: "airplane" },
     { name: "Other", icon: "ellipsis-horizontal" },
   ];
+
+  useEffect(() => {
+    if (transactionId) {
+      setIsLoading(true);
+      const loadTransaction = async () => {
+        try {
+          const transaction = await fetchTransactionById(transactionId);
+
+          if (transaction) {
+            setTitle(transaction.description);
+            setAmount(transaction.amount.toFixed(2));
+            setSelectedCategory(transaction.category);
+
+            if (transaction.date) {
+              setDate(new Date(transaction.date));
+            }
+          }
+        } catch (error) {
+          Alert.alert(
+            "Error",
+            "Failed to load transaction details for editing"
+          );
+          router.replace("/transaction");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      loadTransaction();
+    }
+  }, [transactionId]);
 
   function handleCancel() {
     router.back();
@@ -72,11 +106,18 @@ const newTransaction = () => {
     //API Call and State Handling
     try {
       setIsLoading(true);
-      await addTransaction(newTransactionData);
-      Alert.alert("Success", "Transaction added successfully!");
+      if (transactionId) {
+        // Edit mode - update existing transaction
+        await updateTransaction(transactionId, newTransactionData);
+        Alert.alert("Success", "Transaction updated successfully!");
+      } else {
+        // Add mode - create new transaction
+        await addTransaction(newTransactionData);
+        Alert.alert("Success", "Transaction added successfully!");
+      }
       router.replace("/transaction");
     } catch (error) {
-      console.error("Failed to add transaction:", error);
+      console.error("Failed to save transaction:", error);
       Alert.alert("Error", "Failed to save transaction. Please try again.");
     } finally {
       setIsLoading(false);

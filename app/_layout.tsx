@@ -1,8 +1,12 @@
+// Import gesture handler FIRST before any other imports
+import "react-native-gesture-handler";
+
 // The Root Layout
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "./global.css";
 
 // Prevent splash screen from auto-hiding
@@ -29,16 +33,18 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        // This prevents navigation from resetting on Fast Refresh
-        animation: "none",
-      }}
-    >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="newTransaction" options={{ headerShown: false }} />
-      <Stack.Screen name="newIncome" options={{ headerShown: false }} />
-      <Stack.Screen name="newBill" options={{ headerShown: false }} />
-    </Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Stack
+        screenOptions={{
+          // This prevents navigation from resetting on Fast Refresh
+          animation: "none",
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="newTransaction" options={{ headerShown: false }} />
+        <Stack.Screen name="newIncome" options={{ headerShown: false }} />
+        <Stack.Screen name="newBill" options={{ headerShown: false }} />
+      </Stack>
+    </GestureHandlerRootView>
   );
 }

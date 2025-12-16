@@ -1,8 +1,9 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { router, Stack } from "expo-router";
-import React, { useState } from "react";
+import { router, Stack, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Platform,
@@ -13,17 +14,48 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { addIncome } from "../services/income";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { addIncome, fetchIncomeById, updateIncome } from "../services/income";
+import { formatDateForMongo } from "../utils/mongoDate";
 
 const IncomeDetails = () => {
+  const params = useLocalSearchParams();
+  const incomeId = params.id as string | undefined;
+
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [frequency, setFrequency] = useState("");
   const [nextPayDate, setNextPayDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const frequencyOptions = ["Weekly", "Fortnightly", "Monthly", "One Time"];
+
+  useEffect(() => {
+    if (incomeId) {
+      setIsLoading(true);
+      const loadIncome = async () => {
+        try {
+          const income = await fetchIncomeById(incomeId);
+
+          if (income) {
+            setAmount(income.amount.toFixed(2));
+            setDescription(income.description);
+            setFrequency(income.frequency);
+
+            if (income.startDate) {
+              setNextPayDate(new Date(income.startDate));
+            }
+          }
+        } catch (error) {
+          Alert.alert("Error", "Failed to load income details for editing.");
+          router.replace("/income");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      loadIncome();
+    }
+  }, [incomeId]);
 
   const handleSubmit = async () => {
     const parsedAmount = parseFloat(amount);
@@ -37,23 +69,41 @@ const IncomeDetails = () => {
       return;
     }
 
+    const formattedDate = formatDateForMongo(nextPayDate);
+
     try {
-      await addIncome({
-        amount: parsedAmount,
-        description: description.trim(),
-        frequency: frequency,
-        startDate: nextPayDate.toISOString(),
-      });
-      Alert.alert("Success", "Income added!");
-      setAmount("");
-      setDescription("");
-      setFrequency("");
+      setIsLoading(true);
+      if (incomeId) {
+        // Edit mode - update existing income
+        await updateIncome(incomeId, {
+          amount: parsedAmount,
+          description: description.trim(),
+          frequency: frequency,
+          startDate: formattedDate,
+        });
+        Alert.alert("Success", "Income updated!");
+      } else {
+        // Add mode - create new income
+        await addIncome({
+          amount: parsedAmount,
+          description: description.trim(),
+          frequency: frequency,
+          startDate: formattedDate,
+          originalDueDate: formattedDate,
+        });
+        Alert.alert("Success", "Income added!");
+        setAmount("");
+        setDescription("");
+        setFrequency("");
+      }
       router.back();
     } catch (error) {
       Alert.alert(
         "Error",
         error instanceof Error ? error.message : "Unknown error"
       );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -92,100 +142,67 @@ const IncomeDetails = () => {
       />
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         {/* Back Button */}
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="p-2 ml-2"
-          >
-          <Ionicons name="close" size={28} color='black'/>
+        <TouchableOpacity onPress={() => router.back()} className="p-2 ml-2">
+          <Ionicons name="close" size={28} color="black" />
         </TouchableOpacity>
         {/* Header */}
-        <View className="px-5 pt-8 items-start">
-          <Text className="text-2xl font-rubik-semibold">New Income</Text>
-          <Text className="text-sm font-rubik-light text-gray-700 mb-4">
+        <View className="px-5 pt-3 items-start">
+          <Text className="text-xl font-rubik-semibold">Add Income</Text>
+          <Text className="text-xs font-rubik-light text-gray-700 mb-2">
             Add your income and how often you receive it
           </Text>
         </View>
 
-        {/* Income amount card */}
-        <View className=" px-5 items-start w-full">
-          <View className="w-full max-w-md bg-white rounded-2xl p-5 shadow-md shadow-black/10">
-            <Text className="font-rubik pb-4 text-lg tracking-wider">
-              Income amount
-            </Text>
+        {/* Description Box */}
+        <View className="px-5 mt-2">
+          <Text className="text-sm font-rubik text-black-300 mb-1">
+            Description
+          </Text>
+          <View className="bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3">
             <TextInput
-              className="text-3xl font-rubik bg-transparent mb-8"
-              placeholder="$0.00"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              placeholderTextColor="#333"
-            />
-          </View>
-        </View>
-
-        {/* Description label OUTSIDE the box */}
-        <View className="items-start w-full px-5 mt-4">
-          <Text className="text-lg font-rubik mb-1">Description</Text>
-        </View>
-        <View className="items-start w-full">
-          <View className="w-11/12 max-w-md bg-white rounded-2xl mx-4 shadow-md shadow-black/10 ">
-            <TextInput
+              className="text-base font-rubik"
               placeholder="e.g. Salary, Freelancer"
               value={description}
               onChangeText={setDescription}
-              placeholderTextColor="#adb5bd"
-              className="text-base font-rubik bg-transparent py-4 px-3 min-h-[48px]"
+              placeholderTextColor="#999"
+              style={{ minHeight: 20 }}
             />
           </View>
-        </View>
 
-        {/* Start Date box */}
-        <View className="items-start w-full px-5 mt-4">
-          <Text className="text-lg font-rubik mb-1">Next Pay</Text>
-        </View>
-        <View className="items-start w-full">
-          <View className="w-11/12 max-w-md bg-white rounded-2xl mx-4 shadow-md shadow-black/10 ">
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              className="text-base font-rubik bg-transparent py-4 px-3 min-h-[48px] justify-center"
-              activeOpacity={0.7}
-            >
-              <Text>{formatDateForDisplay(nextPayDate)}</Text>
-            </TouchableOpacity>
+          {/* Amount Box */}
+          <Text className="text-sm font-rubik text-black-300 mb-1 mt-3">
+            Amount
+          </Text>
+          <View className="bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3">
+            <TextInput
+              className="text-base font-rubik"
+              placeholder="Enter Amount"
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={setAmount}
+              placeholderTextColor="#999"
+              style={{ minHeight: 20 }}
+            />
           </View>
-        </View>
 
-        {/* 7. Date Picker Component (Conditional Rendering) */}
-        {showDatePicker && (
-          <DateTimePicker
-            testID="dateTimePicker"
-            value={nextPayDate} // Must be a Date object
-            mode="date"
-            // 'spinner' is preferred on iOS for cleaner appearance
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            onChange={onChangeDate}
-          />
-        )}
-
-        {/* Frequency box */}
-        <View className="items-start w-full px-5 mt-4">
-          <Text className="text-lg font-rubik mb-1">Frequency</Text>
-          <View className="flex-row space-x-4">
+          {/* Frequency Box */}
+          <Text className="text-sm font-rubik text-black-300 mb-1 mt-3">
+            Frequency
+          </Text>
+          <View className="flex-row flex-wrap justify-between">
             {frequencyOptions.map((option) => (
               <TouchableOpacity
                 key={option}
                 onPress={() => setFrequency(option)}
-                className={`px-4 py-2 rounded-xl border ${
-                  frequency === option
-                    ? "bg-[#ffd33d] border-[#ffd33d] text-black font-rubik-semibold"
-                    : "bg-white border-gray-300 text-gray-700 font-rubik"
+                className={`w-[48%] bg-white rounded-xl shadow-md shadow-black/10 p-3 mb-2 items-center ${
+                  frequency === option ? "border-2 border-blue-500" : ""
                 }`}
               >
                 <Text
-                  className={`${
+                  className={`text-sm font-rubik ${
                     frequency === option
-                      ? "text-black font-rubik-semibold"
-                      : "text-gray-700 font-rubik"
+                      ? "text-blue-500 font-rubik-semibold"
+                      : "text-gray-700"
                   }`}
                 >
                   {option}
@@ -193,16 +210,53 @@ const IncomeDetails = () => {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
 
-        {/* ADD & Cancel box */}
-        <View className="justify-center items-center gap-4  mt-4">
+          {/* Date Box */}
+          <Text className="text-sm font-rubik text-black-300 mb-1 mt-3">
+            Next Pay Date
+          </Text>
           <TouchableOpacity
-            className="bg-blue-500 px-8 py-3 rounded-lg w-48"
-            onPress={handleSubmit}
+            onPress={() => setShowDatePicker(!showDatePicker)}
+            className="bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3 flex-row items-center justify-between"
           >
-            <Text className="font-rubik text-lg text-center">Add</Text>
+            <Text className="text-base font-rubik text-gray-700">
+              {nextPayDate.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })}
+            </Text>
+            <Ionicons name="calendar-outline" size={20} color="#666" />
           </TouchableOpacity>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={nextPayDate}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={onChangeDate}
+            />
+          )}
+
+          {/* Buttons */}
+          <View className="flex-row justify-between mt-6 mb-4 gap-3">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="flex-1 bg-gray-200 rounded-xl py-3 items-center"
+            >
+              <Text className="text-sm font-rubik-medium text-gray-700">
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSubmit}
+              className="flex-1 bg-blue-500 rounded-xl py-3 items-center"
+            >
+              <Text className="text-sm font-rubik-medium text-white">
+                Add Income
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>

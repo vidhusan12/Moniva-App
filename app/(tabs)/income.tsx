@@ -1,11 +1,12 @@
+import SwipeableRow from "@/components/SwipeableRow";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { deleteIncome, fetchAllIncome, Income } from "../../services/income";
-import { calculateDaysUntilPay } from "../../utils/mongoDate";
+import { formatMongoDate } from "../../utils/mongoDate";
 
 const IncomeDetails = () => {
   const [incomes, setIncomes] = useState<Income[]>([]);
@@ -42,16 +43,33 @@ const IncomeDetails = () => {
       return;
     }
 
-    try {
-      await deleteIncome(id); // calls teh delete api
-      const updatedIncomes = await fetchAllIncome();
-      setIncomes(updatedIncomes);
-    } catch (error) {
-      Alert.alert("Error", "Failed to delete income");
-    }
+    Alert.alert(
+      "Confirm Delete",
+      "Are you sure you want to delete this income permanently?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          onPress: async () => {
+            try {
+              await deleteIncome(id);
+              const updatedIncomes = await fetchAllIncome();
+              setIncomes(updatedIncomes);
+            } catch (error) {
+              console.error("Deletion failed:", error);
+              Alert.alert("Error", "Failed to delete income");
+            }
+          },
+          style: "destructive",
+        },
+      ]
+    );
   };
 
-  const handleEdit = async (id?: string) => {};
+  // Calculate total income
+  const totalIncome = useMemo(() => {
+    return incomes.reduce((total, income) => total + income.amount, 0);
+  }, [incomes]);
 
   if (loading) {
     return (
@@ -65,67 +83,86 @@ const IncomeDetails = () => {
     <SafeAreaView className="flex-1 bg-[#ffffff]">
       {/* Header and Add Button */}
       <View className="px-5 pt-8 flex-row justify-between items-center">
-        <Text className="text-2xl font-rubik-semibold">Your Finances</Text>
-
-        {/* PLUS BUTTON to navigate */}
+        <View>
+          <Text className="text-2xl font-rubik-semibold">Income</Text>
+          <Text className="text-xs font-rubik-light text-gray-700">
+            {incomes.length} {incomes.length === 1 ? "source" : "sources"}
+          </Text>
+        </View>
         <TouchableOpacity
-          onPress={() => router.push("/newIncome")} // <-- Navigates to the new file
+          onPress={() => router.push("/newIncome")}
           className="p-2"
         >
           <Ionicons name="add-circle" size={32} color="#ffd33d" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        {/* Income details card */}
-        <View className="items-start w-full px-5 mt-4 mb-6">
-          <Text className="text-lg font-rubik mb-2">Your Income</Text>
-          <View className="w-full max-w-md bg-white rounded-2xl shadow-md shadow-black/10">
-            {incomes.map((income, index) => (
-              <View key={income._id} className="px-4 py-2.5">
-                {/* Row 1: Description and Amount */}
-                <View className="flex-row justify-between items-center mb-0.5">
-                  {/* Left side: Description and Amount close together */}
-                  <View className="flex-row items-center gap-3">
-                    <Text className="font-rubik-medium text-lg">
+      <ScrollView>
+        {/* Summary card: total income */}
+        <View className="px-5 mt-3">
+          <View className="flex-row justify-between w-full bg-white rounded-2xl shadow-md shadow-black/10 p-4">
+            <View className="flex-1">
+              <Text className="font-rubik text-xs text-gray-700">
+                TOTAL INCOME
+              </Text>
+              <Text className="font-rubik-semibold text-3xl py-2 text-black">
+                ${totalIncome.toFixed(2)}
+              </Text>
+              <Text className="font-rubik-light text-xs text-gray-700">
+                All sources combined
+              </Text>
+            </View>
+            <View className="justify-center">
+              <FontAwesome name="dollar" size={32} color="#10b981" />
+            </View>
+          </View>
+        </View>
+
+        {/* Section header: Your Income Sources */}
+        <View className="px-5 mt-4 mb-2">
+          <Text className="font-rubik-medium text-sm text-black-300">
+            Your Income Sources ({incomes.length})
+          </Text>
+        </View>
+
+        {/* List of income sources with swipe */}
+        <View className="px-5 mb-4">
+          {incomes.map((income) => (
+            <SwipeableRow
+              key={income._id}
+              onSwipeLeft={() => handleDelete(income._id)}
+              onSwipeRight={() =>
+                router.push({
+                  pathname: "/newIncome",
+                  params: { id: income._id },
+                })
+              }
+            >
+              <View className="w-full bg-green-50 rounded-2xl shadow-md shadow-black/10 mb-3 p-4">
+                <View className="flex-row justify-between items-start">
+                  <View className="flex-1">
+                    <Text className="font-rubik-semibold text-lg text-black">
                       {income.description}
                     </Text>
-                    <Text className="font-rubik text-lg">
-                      ${income.amount.toFixed(2)}
-                    </Text>
+                    <View className="flex-row items-center mt-1">
+                      <Text className="font-rubik text-xs text-gray-600">
+                        {income.frequency}
+                      </Text>
+                      <Text className="font-rubik text-xs text-gray-600 mx-1">
+                        •
+                      </Text>
+                      <Text className="font-rubik text-xs text-gray-600">
+                        Next: {formatMongoDate(income.startDate || "")}
+                      </Text>
+                    </View>
                   </View>
-
-                  {/* Right side: Edit and Delete buttons */}
-                  <View className="flex-row gap-3">
-                    <TouchableOpacity onPress={() => handleDelete(income._id)}>
-                      <FontAwesome name="edit" size={18} color="black" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDelete(income._id)}>
-                      <Ionicons
-                        name="trash-outline"
-                        size={18}
-                        color="#ef233c"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Row 2: Frequency and Next Pay */}
-                <View className="flex-row">
-                  <Text className="font-rubik text-sm text-gray-600">
-                    {income.frequency}
-                  </Text>
-                  <Text className="font-rubik text-sm text-gray-600 mx-1">
-                    {" "}
-                    •{" "}
-                  </Text>
-                  <Text className="font-rubik text-sm text-gray-600">
-                    Next pay in : {calculateDaysUntilPay(income.startDate || "")}
+                  <Text className="font-rubik-semibold text-xl text-green-600 ml-2">
+                    ${income.amount.toFixed(2)}
                   </Text>
                 </View>
               </View>
-            ))}
-          </View>
+            </SwipeableRow>
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -3,7 +3,8 @@ export type Bill = {
   amount: number;
   description: string;
   frequency: string;
-  startDate?: string;
+  startDate: string;           
+  originalDueDate?: string;     
   date?: string;
   lastPaidDate?: string;
 };
@@ -13,7 +14,7 @@ type UpdateBillData = Partial<Bill>; // have access to any fiels from Bill but n
 const API_URL = "https://moniva-backend.onrender.com";
 
 // Adding new Bill to the database
-export const addBilll = async (billData: Bill): Promise<Bill> => {
+export const addBill = async (billData: Bill): Promise<Bill> => {
   const response = await fetch(`${API_URL}/api/bills`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -74,7 +75,9 @@ export const fetchBillById = async (id: string): Promise<Bill> => {
   const response = await fetch(`${API_URL}/api/bills/${id}`);
 
   if (!response.ok) {
-    throw new Error(`Error: Failed to fetch bill with status ${response.status}`);
+    throw new Error(
+      `Error: Failed to fetch bill with status ${response.status}`
+    );
   }
 
   return await response.json();

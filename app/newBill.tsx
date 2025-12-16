@@ -1,4 +1,4 @@
-import { addBilll, fetchBillById, updateBill } from "@/services/bill";
+import { addBill, fetchBillById, updateBill } from "@/services/bill";
 import { formatDateForMongo } from "@/utils/mongoDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker, {
@@ -35,7 +35,7 @@ const BillDetails = () => {
   useEffect(() => {
     if (billId) {
       setIsLoading(true);
-      const loadBill = async () => {
+      const loadBill = async () => { 
         try {
           const bill = await fetchBillById(billId);
 
@@ -76,11 +76,14 @@ const BillDetails = () => {
     }
 
     // Convert nextPayDate to ISO string (YYYY-MM-DDTHH:mm:ss.sssZ) for storage
+    const formattedDate = formatDateForMongo(nextPayDate);
+
     const payload = {
       amount: parsedAmount,
       description: description.trim(),
       frequency: frequency,
-      startDate: formatDateForMongo(nextPayDate),
+      startDate: formattedDate,
+      originalDueDate: formattedDate, // Set original due date same as start date
     };
 
     try {
@@ -97,7 +100,7 @@ const BillDetails = () => {
         Alert.alert("Success", "Bill updated!");
       } else {
         // When adding a new bill, lastPaidDate is naturally absent/cleared.
-        await addBilll(payload);
+        await addBill(payload);
         Alert.alert("Success", "Bill added!");
         setAmount("");
         setDescription("");
@@ -164,95 +167,65 @@ const BillDetails = () => {
           <Ionicons name="close" size={28} color="black" />
         </TouchableOpacity>
         {/* Header */}
-        <View className="px-5 pt-8 items-start">
-          <Text className="text-2xl font-rubik-semibold">
-            {billId ? "Edit Bill" : "New Bill"}
+        <View className="px-5 pt-3 items-start">
+          <Text className="text-xl font-rubik-semibold">
+            {billId ? "Edit Bill" : "Add Bill"}
           </Text>
-          <Text className="text-sm font-rubik-light text-gray-700 mb-4">
+          <Text className="text-xs font-rubik-light text-gray-700 mb-2">
             Add your bill and how often you receive it
           </Text>
         </View>
 
-        {/* Bill Amount Card */}
-        <View className=" px-5 items-start w-full">
-          <View className="w-full max-w-md bg-white rounded-2xl p-5 shadow-md shadow-black/10">
-            <Text className="font-rubik pb-4 text-lg tracking-wider">
-              Bill amount
-            </Text>
+        {/* Description Box */}
+        <View className="px-5 mt-2">
+          <Text className="text-sm font-rubik text-black-300 mb-1">
+            Description
+          </Text>
+          <View className="bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3">
             <TextInput
-              className="text-3xl font-rubik bg-transparent mb-8"
-              placeholder="$0.00"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              placeholderTextColor="#333"
-            />
-          </View>
-        </View>
-
-        {/* Description label OUTSIDE the box */}
-        <View className="items-start w-full px-5 mt-4">
-          <Text className="text-lg font-rubik mb-1">Description</Text>
-        </View>
-        <View className="items-start w-full">
-          <View className="w-11/12 max-w-md bg-white rounded-2xl mx-4 shadow-md shadow-black/10 ">
-            <TextInput
+              className="text-base font-rubik"
               placeholder="e.g. Netflix, Prime"
               value={description}
               onChangeText={setDescription}
-              placeholderTextColor="#adb5bd"
-              className="text-base font-rubik bg-transparent py-4 px-3 min-h-[48px]"
+              placeholderTextColor="#999"
+              style={{ minHeight: 20 }}
             />
           </View>
-        </View>
 
-        {/* Start Date box */}
-        <View className="items-start w-full px-5 mt-4">
-          <Text className="text-lg font-rubik mb-1">Bill Date</Text>
-        </View>
-        <View className="items-start w-full">
-          <View className="w-11/12 max-w-md bg-white rounded-2xl mx-4 shadow-md shadow-black/10 ">
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              className="text-base font-rubik bg-transparent py-4 px-3 min-h-[48px] justify-center"
-              activeOpacity={0.7}
-            >
-              <Text>{formatDateForDisplay(nextPayDate)}</Text>
-            </TouchableOpacity>
+          {/* Amount Box */}
+          <Text className="text-sm font-rubik text-black-300 mb-1 mt-3">
+            Amount
+          </Text>
+          <View className="bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3">
+            <TextInput
+              className="text-base font-rubik"
+              placeholder="Enter Amount"
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={setAmount}
+              placeholderTextColor="#999"
+              style={{ minHeight: 20 }}
+            />
           </View>
-        </View>
 
-        {/* Date Picker Component (Conditional Rendering) */}
-        {showDatePicker && (
-          <DateTimePicker
-            testID="dateTimePicker"
-            value={nextPayDate} // Must be a Date object
-            mode="date"
-            // 'spinner' is preferred on iOS for cleaner appearance
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            onChange={onChangeDate}
-          />
-        )}
-
-        {/* Frequency box */}
-        <View className="items-start w-full px-5 mt-4">
-          <Text className="text-lg font-rubik mb-1">Frequency</Text>
-          <View className="flex-row space-x-4">
+          {/* Frequency Box */}
+          <Text className="text-sm font-rubik text-black-300 mb-1 mt-3">
+            Frequency
+          </Text>
+          <View className="flex-row flex-wrap justify-between">
             {frequencyOptions.map((option) => (
               <TouchableOpacity
                 key={option}
                 onPress={() => setFrequency(option)}
-                className={`px-4 py-2 rounded-xl border ${
-                  frequency === option
-                    ? "bg-[#ffd33d] border-[#ffd33d] text-black font-rubik-semibold"
-                    : "bg-white border-gray-300 text-gray-700 font-rubik"
+                className={`w-[48%] bg-white rounded-xl shadow-md shadow-black/10 p-3 mb-2 items-center ${
+                  frequency === option ? "border-2 border-blue-500" : ""
                 }`}
               >
                 <Text
-                  className={`${
+                  className={`text-sm font-rubik ${
                     frequency === option
-                      ? "text-black font-rubik-semibold"
-                      : "text-gray-700 font-rubik"
+                      ? "text-blue-500 font-rubik-semibold"
+                      : "text-gray-700"
                   }`}
                 >
                   {option}
@@ -260,19 +233,54 @@ const BillDetails = () => {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
 
-        {/* ADD & Cancel box */}
-        <View className="justify-center items-center gap-4  mt-4">
+          {/* Date Box */}
+          <Text className="text-sm font-rubik text-black-300 mb-1 mt-3">
+            Bill Date
+          </Text>
           <TouchableOpacity
-            className="bg-blue-500 px-8 py-3 rounded-lg w-48"
-            onPress={handleSubmit}
-            disabled={isLoading}
+            onPress={() => setShowDatePicker(!showDatePicker)}
+            className="bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3 flex-row items-center justify-between"
           >
-            <Text className="font-rubik text-lg text-center">
-              {billId ? "Update" : "Add"}
+            <Text className="text-base font-rubik text-gray-700">
+              {nextPayDate.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })}
             </Text>
+            <Ionicons name="calendar-outline" size={20} color="#666" />
           </TouchableOpacity>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={nextPayDate}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={onChangeDate}
+            />
+          )}
+
+          {/* Buttons */}
+          <View className="flex-row justify-between mt-6 mb-4 gap-3">
+            <TouchableOpacity
+              onPress={() => router.replace("/bill")}
+              className="flex-1 bg-gray-200 rounded-xl py-3 items-center"
+            >
+              <Text className="text-sm font-rubik-medium text-gray-700">
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={isLoading}
+              className="flex-1 bg-blue-500 rounded-xl py-3 items-center"
+            >
+              <Text className="text-sm font-rubik-medium text-white">
+                {isLoading ? "Saving..." : billId ? "Update" : "Add Bill"}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -8,14 +8,70 @@ import {
   startOfDay,
 } from "date-fns";
 
-// --- Type Definition ---
+// --- Type Definitions ---
+export type BillFrequency =
+  | "Weekly"
+  | "Fortnightly"
+  | "Monthly"
+  | "Quarterly"
+  | "Annual"
+  | "One Time";
+
 export type BillWithDueDate = Bill & {
   dueDateObj: Date;
   isOverdue: boolean;
 };
 
+// --- Helper Functions ---
+
+/**
+ * Normalizes frequency string to lowercase for consistent comparisons.
+ */
+const normalizeFrequency = (frequency: string): string => {
+  return frequency.toLowerCase().trim();
+};
+
+/**
+ * Internal helper: Maps bills to BillWithDueDate objects.
+ * Calculates due dates and determines overdue status.
+ */
+function mapBillsWithDueDate(allBills: Bill[]): BillWithDueDate[] {
+  const today = startOfDay(new Date());
+
+  return allBills
+    .map((bill) => {
+      if (!bill.startDate) return null;
+
+      const rawDueDate = startOfDay(parseISO(bill.startDate));
+      const calculatedDueDate = calculateNextDueDate(
+        bill.startDate,
+        bill.frequency
+      );
+
+      if (isNaN(rawDueDate.getTime()) || isNaN(calculatedDueDate.getTime())) {
+        console.warn(`Invalid date for bill ${bill._id}:`, bill.startDate);
+        return null;
+      }
+
+      const isOverdue = rawDueDate.getTime() < today.getTime();
+      const dateToDisplay = rawDueDate;
+
+      return {
+        ...bill,
+        dueDateObj: dateToDisplay,
+        isOverdue,
+      } as BillWithDueDate;
+    })
+    .filter((bill): bill is BillWithDueDate => bill !== null);
+}
+
+// --- Exported Functions ---
+
 /**
  * Calculates the total amount for a list of bills.
+ *
+ * @param bills - Array of bills to sum
+ * @returns Total amount of all bills
  */
 export function calculateBillTotal(bills: Bill[] | BillWithDueDate[]): number {
   return bills.reduce((total, bill) => total + bill.amount, 0);
@@ -24,6 +80,15 @@ export function calculateBillTotal(bills: Bill[] | BillWithDueDate[]): number {
 /**
  * Calculates the next due date for a bill based on its original date and frequency.
  * Increments the date until it is on or after today (startOfDay).
+ *
+ * @example
+ * // Bill due on Jan 1, 2025, Monthly frequency, today is Feb 15, 2025
+ * calculateNextDueDate('2025-01-01', 'Monthly')
+ * // Returns: March 1, 2025
+ *
+ * @param originalDateIso - ISO date string (e.g., "2025-01-01")
+ * @param frequency - Bill frequency (Weekly, Monthly, etc.)
+ * @returns The next due date as a Date object
  */
 export function calculateNextDueDate(
   originalDateIso: string,
@@ -33,12 +98,13 @@ export function calculateNextDueDate(
   const today = startOfDay(new Date());
 
   if (isNaN(nextDate.getTime())) {
+    console.warn(`Invalid date: ${originalDateIso}`);
     return today;
   }
 
-  const normFrequency = frequency.toLowerCase();
+  const normFrequency = normalizeFrequency(frequency);
 
-  while (nextDate.getTime() < today.getTime()) {
+  while (nextDate.getTime() <= today.getTime()) {
     switch (normFrequency) {
       case "weekly":
         nextDate = addWeeks(nextDate, 1);
@@ -56,6 +122,7 @@ export function calculateNextDueDate(
         nextDate = addMonths(nextDate, 12);
         break;
       default:
+        // For 'One Time' or unknown, stop. The date is meant to be static.
         return nextDate;
     }
   }
@@ -65,13 +132,17 @@ export function calculateNextDueDate(
 
 /**
  * Calculates the previous due date for a bill. Used for reverting a 'paid' status.
+ *
+ * @param currentDateIso - Current due date in ISO format
+ * @param frequency - Bill frequency
+ * @returns Previous due date as a Date object
  */
 export function calculatePreviousDueDate(
   currentDateIso: string,
   frequency: string
 ): Date {
   let prevDate = startOfDay(parseISO(currentDateIso));
-  const normFrequency = frequency.toLowerCase();
+  const normFrequency = normalizeFrequency(frequency);
 
   switch (normFrequency) {
     case "weekly":
@@ -95,89 +166,85 @@ export function calculatePreviousDueDate(
   return prevDate;
 }
 
-// --- Filtering and Summary Functions ---
 
 /**
  * Returns all bills that have been marked as paid in the current month.
  * Relies strictly on a non-empty, current-month lastPaidDate.
+ *
+ * @param allBills - Array of all bills
+ * @returns Array of bills paid this month
  */
 export function getPaidBillsThisMonth(allBills: Bill[]): Bill[] {
   const today = new Date();
 
   return allBills.filter((bill) => {
-    if (!bill.lastPaidDate || bill.lastPaidDate.trim() === "") return false;
+    // Must have a last paid date and it must NOT be empty
+    if (!bill.lastPaidDate?.trim()) return false;
 
-    const paidDate = parseISO(bill.lastPaidDate);
-
-    if (isNaN(paidDate.getTime())) return false;
-    return isSameMonth(paidDate, today);
+    try {
+      const paidDate = parseISO(bill.lastPaidDate);
+      if (isNaN(paidDate.getTime())) return false;
+      return isSameMonth(paidDate, today);
+    } catch (error) {
+      console.error(`Invalid date format for bill ${bill._id}:`, error);
+      return false;
+    }
   });
 }
 
 /**
- * Filters and sorts bills that are due within the current calendar month
- * or are overdue (based on the *calculated* next due date).
- */
-/**
- * Filters and sorts bills that are due within the current calendar month
- * or are overdue (based on the *calculated* next due date).
- */
-/**
- * Filters and sorts bills that are due within the current calendar month.
- * This function determines the NEXT payment date (current cycle) and handles overdue status.
- */
-/**
- * Filters and sorts bills that are due within the current calendar month
- * or are overdue (based on the *calculated* next due date).
+ * Filters and sorts bills that are due within the current or next calendar month.
+ * Uses the RAW startDate to determine Overdue status for recurring bills.
+ * This is used for DISPLAY purposes (shows current month + next month bills).
+ *
+ * @param allBills - Array of all bills
+ * @returns Array of upcoming bills with due dates and overdue status
  */
 export function getMonthlyUpcomingBills(allBills: Bill[]): BillWithDueDate[] {
   const today = startOfDay(new Date());
+  const nextMonth = addMonths(today, 1);
+  const billsWithDate = mapBillsWithDueDate(allBills);
 
-  const billsWithDate: BillWithDueDate[] = allBills
-    .map((bill) => {
-      if (!bill.startDate) return null;
-
-      // 1. Calculate the next due date based on the bill's frequency and current startDate.
-      // This date is guaranteed to be TODAY or a future date (unless frequency is 'One Time').
-      const calculatedDueDate = calculateNextDueDate(
-        bill.startDate,
-        bill.frequency
-      );
-
-      if (isNaN(calculatedDueDate.getTime())) {
-        return null;
-      }
-
-      // 2. Overdue check: Only 'One Time' bills can technically be overdue here.
-      const isOverdue = calculatedDueDate.getTime() < today.getTime();
-
-      return {
-        ...bill,
-        dueDateObj: calculatedDueDate,
-        isOverdue,
-      } as BillWithDueDate;
-    })
-    .filter((bill): bill is BillWithDueDate => bill !== null);
-
-  // 3. FINAL FILTER: Keep only bills that are due in the current calendar month OR are overdue.
-  // This ensures the list doesn't show bills due far in the future.
+  // Keep bills that are overdue OR due this month OR due next month
   const filteredBills = billsWithDate.filter((bill) => {
+    if (bill.isOverdue) return true;
     const isDueThisMonth = isSameMonth(bill.dueDateObj, today);
-    return isDueThisMonth || bill.isOverdue;
+    const isDueNextMonth = isSameMonth(bill.dueDateObj, nextMonth);
+    return isDueThisMonth || isDueNextMonth;
   });
 
-  // 4. SORTING: Overdue first, then chronological.
+  // Sort: Overdue first, then chronological
   return filteredBills.sort((a, b) => {
     if (a.isOverdue && !b.isOverdue) return -1;
     if (!a.isOverdue && b.isOverdue) return 1;
-
     return a.dueDateObj.getTime() - b.dueDateObj.getTime();
   });
 }
 
 /**
+ * Filters bills to include ONLY those due in the current calendar month
+ * or bills that are explicitly overdue (from previous months).
+ * This is used ONLY for calculating the correct "Total Monthly Bill" sum.
+ *
+ * @param allBills - Array of all bills
+ * @returns Array of bills due this month (for budget calculations)
+ */
+export function getBillsDueCurrentMonth(allBills: Bill[]): BillWithDueDate[] {
+  const today = startOfDay(new Date());
+  const billsWithDate = mapBillsWithDueDate(allBills);
+
+  // Keep only bills due in current month OR overdue
+  return billsWithDate.filter((bill) => {
+    if (bill.isOverdue) return true;
+    return isSameMonth(bill.dueDateObj, today);
+  });
+}
+
+/**
  * Returns a sorted list of bills due within the next 7 days (including today).
- * Bills are advanced using calculateNextDueDate to find their *next* payment cycle.
+ *
+ * @param allBills - Array of all bills
+ * @returns Array of bills due in the next week
  */
 export function getWeeklyBillSummary(allBills: Bill[]): BillWithDueDate[] {
   const today = startOfDay(new Date());
@@ -187,7 +254,7 @@ export function getWeeklyBillSummary(allBills: Bill[]): BillWithDueDate[] {
     .map((bill) => {
       if (!bill.startDate) return null;
 
-      const dueDateObj = calculateNextDueDate(bill.startDate, bill.frequency);
+      const dueDateObj = startOfDay(parseISO(bill.startDate));
 
       if (isNaN(dueDateObj.getTime())) return null;
 
@@ -199,17 +266,16 @@ export function getWeeklyBillSummary(allBills: Bill[]): BillWithDueDate[] {
     })
     .filter((bill): bill is BillWithDueDate => bill !== null);
 
-  // Filter bills due within the next 7 days (today is included)
+  // Filter bills due within the next 7 days
   const filteredBills = billsWithDate.filter((bill) => {
     const dueDate = bill.dueDateObj;
-
     return (
       dueDate.getTime() >= today.getTime() &&
       dueDate.getTime() <= next7DaysEnd.getTime()
     );
   });
 
-  // Sort bills by due date (earliest first)
+  // Sort by due date (earliest first)
   return filteredBills.sort(
     (a, b) => a.dueDateObj.getTime() - b.dueDateObj.getTime()
   );
@@ -217,18 +283,28 @@ export function getWeeklyBillSummary(allBills: Bill[]): BillWithDueDate[] {
 
 /**
  * Calculates the recommended weekly savings target using a hybrid budgeting algorithm.
+ * Returns the target, actual urgent bills, average, buffer, and the list of urgent bills.
+ *
+ * @param allBills - Array of all bills
+ * @returns Object containing weekly savings plan details
  */
 export function getWeeklySavingsPlan(allBills: Bill[]) {
-  const totalMonthlyBill = calculateBillTotal(allBills);
+  // Use current month bills only for accurate monthly total calculation
+  const currentMonthBills = getBillsDueCurrentMonth(allBills);
+
+  const totalMonthlyBill = calculateBillTotal(currentMonthBills);
   const weeklyAverageTarget = totalMonthlyBill / 4;
 
   const billsDueThisWeekList = getWeeklyBillSummary(allBills);
   const billsDueThisWeekTotal = calculateBillTotal(billsDueThisWeekList);
 
+  // Final target is the greater of average or immediate needs
   const finalWeeklyTarget = Math.max(
     weeklyAverageTarget,
     billsDueThisWeekTotal
   );
+
+  // Money saved this week for future bills
   const futureBufferContribution = finalWeeklyTarget - billsDueThisWeekTotal;
 
   return {
