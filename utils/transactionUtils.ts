@@ -30,16 +30,23 @@ export function groupTransactionsByDate(transactions: Transaction[]): Array<{
     groups[date].push(transaction);
   }
 
-  // Step 3: Convert to array format
+  // Step 3: Convert to array format and sort transactions within each group
   const groupedArray = [];
   for (const date in groups) {
+    // Sort transactions within this date group (newest first)
+    const sortedTransactions = groups[date].sort((a, b) => {
+      const timeA = new Date(a.date || 0).getTime();
+      const timeB = new Date(b.date || 0).getTime();
+      return timeB - timeA; // newest first
+    });
+
     groupedArray.push({
       date: date,
-      transactions: groups[date],
+      transactions: sortedTransactions,
     });
   }
 
-  // Step 4: Sort by date (newest first)
+  // Step 4: Sort date groups (newest first)
   groupedArray.sort((a, b) => {
     const dateA = parseISO(a.date);
     const dateB = parseISO(b.date);

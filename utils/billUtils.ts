@@ -166,7 +166,6 @@ export function calculatePreviousDueDate(
   return prevDate;
 }
 
-
 /**
  * Returns all bills that have been marked as paid in the current month.
  * Relies strictly on a non-empty, current-month lastPaidDate.
@@ -314,4 +313,42 @@ export function getWeeklySavingsPlan(allBills: Bill[]) {
     futureBufferContribution,
     billsDueThisWeekList,
   };
+}
+
+/**
+ * Returns bills that are due in the next 7 days and haven't been paid recently.
+ * Used to show upcoming bills on the home screen.
+ *
+ * @param bills - Array of all bills
+ * @returns Array of upcoming unpaid bills
+ */
+export function getUpcomingBills(bills: Bill[]): BillWithDueDate[] {
+  const today = startOfDay(new Date());
+  const next7Days = addDays(today, 7);
+
+  const billsWithDate = mapBillsWithDueDate(bills);
+
+  // Filter bills due within next 7 days and not recently paid
+  return billsWithDate
+    .filter((bill) => {
+      const dueDate = bill.dueDateObj;
+      const isDueInNext7Days =
+        dueDate.getTime() >= today.getTime() &&
+        dueDate.getTime() <= next7Days.getTime();
+
+      // Check if paid recently (within current month)
+      const isPaidRecently = bill.lastPaidDate?.trim()
+        ? (() => {
+            try {
+              const paidDate = parseISO(bill.lastPaidDate);
+              return isSameMonth(paidDate, today);
+            } catch {
+              return false;
+            }
+          })()
+        : false;
+
+      return isDueInNext7Days && !isPaidRecently;
+    })
+    .sort((a, b) => a.dueDateObj.getTime() - b.dueDateObj.getTime());
 }

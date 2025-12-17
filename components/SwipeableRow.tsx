@@ -156,7 +156,10 @@ const SwipeableRow: React.FC<SwipeableRowProps> = ({
 
       {/* Foreground content (animated) */}
       <GestureDetector gesture={panGesture}>
-        <Animated.View style={animatedStyle} className="w-full bg-white z-10">
+        <Animated.View
+          style={animatedStyle}
+          className="w-full bg-[#0a0a0a] z-10"
+        >
           {children}
         </Animated.View>
       </GestureDetector>

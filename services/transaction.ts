@@ -4,7 +4,6 @@ export type Transaction = {
   amount: number;
   category: string;
   date?: string;
-  
 };
 
 type UpdateTransactionData = Partial<Transaction>;
@@ -28,7 +27,7 @@ export const addTransaction = async (
   return await response.json();
 };
 
-// Get all the transactions from the database
+// Get all the transactions from the database - ROBUST
 export const fetchAllTransaction = async (): Promise<Transaction[]> => {
   const response = await fetch(`${API_URL}/api/transactions`);
 
@@ -36,7 +35,19 @@ export const fetchAllTransaction = async (): Promise<Transaction[]> => {
     throw new Error(`Error ${response.status}`);
   }
 
-  return await response.json();
+  // 🏆 ROBUST FETCH: Try/Catch for non-JSON success response
+  try {
+    return await response.json();
+  } catch (e) {
+    const rawText = await response.text();
+    console.error(
+      "JSON Parse Error on fetchAllTransaction. Raw Text:",
+      rawText
+    );
+    throw new Error(
+      `Failed to parse transaction list: Server returned non-JSON data.`
+    );
+  }
 };
 
 // Get single transaction from the database
@@ -54,19 +65,16 @@ export const fetchTransactionById = async (
 
 // Delete transaction from database
 export const deleteTransaction = async (id: string): Promise<void> => {
-
-
   const response = await fetch(`${API_URL}/api/transactions/${id}`, {
     method: "DELETE",
   });
-
 
   if (!response.ok) {
     throw new Error(`Error: Failed to delete transaction, ${response.status}`);
   }
 };
 
-// Update transaction
+// Update transaction - ROBUST
 export const updateTransaction = async (
   id: string,
   data: UpdateTransactionData
@@ -78,10 +86,18 @@ export const updateTransaction = async (
   });
 
   if (!response.ok) {
-    const errorBody = await response.json();
-    throw new Error(
-      errorBody.message ||
-        `Failed to update transaction with status: ${response.status}`
-    );
+    let errorMessage = `Failed to update transaction with status: ${response.status}`;
+
+    // 🏆 ROBUST ERROR: Try JSON, but fall back to raw text if parsing fails
+    try {
+      const errorBody = await response.json();
+      errorMessage = errorBody.message || errorMessage;
+    } catch (e) {
+      const rawText = await response.text();
+      console.error("API Error Body (Non-JSON):", rawText);
+      errorMessage = `Server Error: ${rawText.substring(0, 50)}...`;
+    }
+
+    throw new Error(errorMessage);
   }
 };

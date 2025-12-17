@@ -1,6 +1,8 @@
 import {
   addTransaction,
   fetchTransactionById,
+  // 🏆 IMPORTANT: Import the Transaction type from your service file
+  Transaction,
   updateTransaction,
 } from "@/services/transaction";
 import { formatDateForMongo } from "@/utils/mongoDate";
@@ -18,6 +20,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+// 🏆 CORRECT IMPORT: We need the store
+import { useFinanceStore } from "@/store/financeStore";
 
 const newTransaction = () => {
   const params = useLocalSearchParams();
@@ -29,6 +33,17 @@ const newTransaction = () => {
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 🏆 INFINITE LOOP FIX: Select actions individually (most robust method)
+  const optimisticallyAddTransaction = useFinanceStore(
+    (state) => state.optimisticallyAddTransaction
+  );
+  const optimisticallyRemoveTransaction = useFinanceStore(
+    (state) => state.optimisticallyRemoveTransaction
+  );
+  const refetchTransactions = useFinanceStore(
+    (state) => state.refetchTransactions
+  );
 
   const categories = [
     { name: "Food", icon: "fast-food" },
@@ -76,14 +91,14 @@ const newTransaction = () => {
     router.back();
   }
 
+  // REFACTORED: The Optimistic Update Logic
   async function handleAdd() {
-    // 1 Check for required fields
+    // 1. Validation (remains the same)
     if (!title || !amount || !selectedCategory || !date) {
       Alert.alert("Missing Information", "Please fill in all the information.");
       return;
     }
 
-    // 2. Check if amount is a valid number (and convert it)
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
       Alert.alert(
@@ -93,39 +108,63 @@ const newTransaction = () => {
       return;
     }
 
-    // 3. Format the data object
-    const newTransactionData = {
+    // 2. Prepare Data Object
+    const newTransactionData: Transaction = {
       description: title,
       amount: numericAmount,
       category: selectedCategory,
-      // Convert the Date object to a standardized string for the backend
-      date: formatDateForMongo(date),
-      // Assuming a user ID might be needed, but we'll keep it simple for now
+      date: formatDateForMongo(new Date()),
     };
 
-    //API Call and State Handling
-    try {
-      setIsLoading(true);
-      if (transactionId) {
-        // Edit mode - update existing transaction
+    // --- START LOGIC SPLIT: EDIT vs ADD ---
+
+    if (transactionId) {
+      // --- Edit/Update Mode: Standard (Pessimistic) Approach ---
+      try {
         await updateTransaction(transactionId, newTransactionData);
-        Alert.alert("Success", "Transaction updated successfully!");
-      } else {
-        // Add mode - create new transaction
-        await addTransaction(newTransactionData);
-        Alert.alert("Success", "Transaction added successfully!");
+        await refetchTransactions();
+        router.replace("/transaction");
+      } catch (error) {
+        console.error("Failed to update transaction:", error);
+        Alert.alert("Error", "Failed to update transaction. Please try again.");
       }
+    } else {
+      // --- Add Mode: OPTIMISTIC Approach ---
+
+      // 1. Add the transaction to the local store INSTANTLY.
+      const tempTransaction: Transaction = {
+        ...newTransactionData,
+        _id: `temp-${Date.now()}`,
+      };
+      optimisticallyAddTransaction(tempTransaction);
+
+      // 2. Navigate away INSTANTLY (UX Win)
       router.replace("/transaction");
-    } catch (error) {
-      console.error("Failed to save transaction:", error);
-      Alert.alert("Error", "Failed to save transaction. Please try again.");
-    } finally {
-      setIsLoading(false);
+
+      // 3. Start API call in the background
+      try {
+        await addTransaction(newTransactionData);
+
+        // 4. CONFIRMATION: Refetch all data to replace the temporary ID with the real database ID
+        await refetchTransactions();
+      } catch (error) {
+        // 5. ROLLBACK: If the API failed
+        console.error("Failed to save transaction:", error);
+
+        // Rollback the optimistic change (remove the temporary item)
+        optimisticallyRemoveTransaction(tempTransaction._id!);
+
+        Alert.alert(
+          "Error",
+          "Failed to save transaction. Check your connection."
+        );
+      }
     }
   }
 
+  // --- JSX Rendering ---
   return (
-    <SafeAreaView className="flex-1 bg-[#ffffff]">
+    <SafeAreaView className="flex-1 bg-[#0a0a0a]">
       <Stack.Screen
         options={{
           headerShown: false,
@@ -136,23 +175,25 @@ const newTransaction = () => {
         {/* Back Button */}
         <TouchableOpacity
           onPress={() => router.replace("/transaction")}
-          className="p-2 ml-2"
+          className="p-3 ml-2"
         >
-          <Ionicons name="close" size={28} color="black" />
+          <Ionicons name="close" size={32} color="white" />
         </TouchableOpacity>
         {/* Header */}
-        <View className="px-5 pt-3 items-start">
-          <Text className="text-xl font-rubik-semibold">Add Transaction</Text>
-          <Text className="text-xs font-rubik-light text-gray-700 mb-2">
+        <View className="px-5 pt-2 items-start">
+          <Text className="text-2xl font-rubik-semibold text-white">
+            {transactionId ? "Edit Transaction" : "Add Transaction"}
+          </Text>
+          <Text className="text-sm font-rubik-light text-gray-400 mb-3">
             Add your transaction details
           </Text>
         </View>
         {/* Title box */}
         <View className="px-5 mt-2">
-          <Text className="text-sm font-rubik text-black-300 mb-1">Title</Text>
-          <View className="bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3">
+          <Text className="text-base font-rubik text-gray-300 mb-2">Title</Text>
+          <View className="bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 px-4 py-4">
             <TextInput
-              className="text-base font-rubik"
+              className="text-base font-rubik text-white"
               placeholder="e.g. Food, Shopping"
               value={title}
               onChangeText={setTitle}
@@ -161,12 +202,12 @@ const newTransaction = () => {
             />
           </View>
           {/* Amount Box */}
-          <Text className="text-sm font-rubik text-black-300 mb-1 mt-3">
+          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">
             Amount
           </Text>
-          <View className="bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3">
+          <View className="bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 px-4 py-4">
             <TextInput
-              className="text-base font-rubik"
+              className="text-base font-rubik text-white"
               placeholder="Enter Amount"
               keyboardType="numeric"
               value={amount}
@@ -176,7 +217,7 @@ const newTransaction = () => {
             />
           </View>
           {/* Category Box */}
-          <Text className="text-sm font-rubik text-black-300 mb-1 mt-3">
+          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">
             Category
           </Text>
           <View className="flex-row flex-wrap justify-between">
@@ -184,7 +225,7 @@ const newTransaction = () => {
               <TouchableOpacity
                 key={index}
                 onPress={() => setSelectedCategory(category.name)}
-                className={`w-[30%] bg-white rounded-xl shadow-md shadow-black/10 p-2 mb-2 items-center ${
+                className={`w-[30%] bg-[#1a1a1a] rounded-xl shadow-md shadow-black/50 p-2 mb-2 items-center ${
                   selectedCategory === category.name
                     ? "border-2 border-blue-500"
                     : ""
@@ -194,14 +235,14 @@ const newTransaction = () => {
                   name={category.icon as any}
                   size={22}
                   color={
-                    selectedCategory === category.name ? "#3b82f6" : "#666"
+                    selectedCategory === category.name ? "#3b82f6" : "#999"
                   }
                 />
                 <Text
                   className={`text-xs font-rubik mt-1 ${
                     selectedCategory === category.name
                       ? "text-blue-500 font-rubik-semibold"
-                      : "text-gray-700"
+                      : "text-gray-300"
                   }`}
                 >
                   {category.name}
@@ -210,21 +251,21 @@ const newTransaction = () => {
             ))}
           </View>
           {/* Date Box */}
-          <Text className="text-sm font-rubik text-black-300 mb-1 mt-3">
+          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">
             Date
           </Text>
           <TouchableOpacity
             onPress={() => setShowDatePicker(!showDatePicker)}
-            className="bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3 flex-row items-center justify-between"
+            className="bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 px-4 py-4 flex-row items-center justify-between"
           >
-            <Text className="text-base font-rubik text-gray-700">
+            <Text className="text-base font-rubik text-white">
               {date.toLocaleDateString("en-GB", {
                 day: "2-digit",
                 month: "2-digit",
                 year: "numeric",
               })}
             </Text>
-            <Ionicons name="calendar-outline" size={20} color="#666" />
+            <Ionicons name="calendar-outline" size={20} color="#999" />
           </TouchableOpacity>
 
           {showDatePicker && (
@@ -233,7 +274,7 @@ const newTransaction = () => {
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={(event, selectedDate) => {
-                setShowDatePicker(Platform.OS === "ios");
+                setShowDatePicker(Platform.OS === "ios" ? false : false);
                 if (selectedDate) {
                   setDate(selectedDate);
                 }
@@ -241,22 +282,21 @@ const newTransaction = () => {
             />
           )}
           {/* Buttons */}
-          <View className="flex-row justify-between mt-6 mb-4 gap-3">
+          <View className="flex-row justify-between mt-8 mb-4 gap-4">
             <TouchableOpacity
               onPress={handleCancel}
-              className="flex-1 bg-gray-200 rounded-xl py-3 items-center"
+              className="flex-1 bg-[#2a2a2a] rounded-xl py-4 items-center"
             >
-              <Text className="text-sm font-rubik-medium text-gray-700">
+              <Text className="text-base font-rubik-medium text-gray-300">
                 Cancel
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleAdd}
-              disabled={isLoading}
-              className="flex-1 bg-blue-500 rounded-xl py-3 items-center"
+              className="flex-1 bg-blue-500 rounded-xl py-4 items-center"
             >
-              <Text className="text-sm font-rubik-medium text-white">
-                {isLoading ? "Saving..." : "Add Transaction"}
+              <Text className="text-base font-rubik-medium text-white">
+                {transactionId ? "Update Transaction" : "Add Transaction"}
               </Text>
             </TouchableOpacity>
           </View>

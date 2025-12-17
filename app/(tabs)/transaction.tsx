@@ -1,9 +1,6 @@
 import SwipeableRow from "@/components/SwipeableRow";
-import {
-  deleteTransaction,
-  fetchAllTransaction,
-  Transaction,
-} from "@/services/transaction";
+import { deleteTransaction } from "@/services/transaction";
+import { useFinanceStore } from "@/store/financeStore";
 import { formatFriendlyDate } from "@/utils/mongoDate";
 import {
   calculateAverageDailySpending,
@@ -14,7 +11,6 @@ import {
   groupTransactionsByDate,
 } from "@/utils/transactionUtils";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -28,30 +24,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const transaction = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  // Global state with actions
+  const { transactions, loading, refetchTransactions } = useFinanceStore();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  // ❌ The 'isLoading' local state is now unnecessary for data loading but can stay for search/UI loading
+  const [isUiLoading, setIsUiLoading] = useState(false);
   const [refreshToggle, setRefreshToggle] = useState(false);
-
-  const loadTransactions = React.useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const transactionData = await fetchAllTransaction();
-      setTransactions(transactionData);
-    } catch (error) {
-      console.error("Failed to fetch Transactions", error);
-      Alert.alert("Error", "Failed to load Transactions");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      loadTransactions();
-      return () => {};
-    }, [loadTransactions, refreshToggle])
-  );
 
   const handleDelete = async (id?: string) => {
     if (!id) {
@@ -69,7 +47,7 @@ const transaction = () => {
           onPress: async () => {
             try {
               await deleteTransaction(id);
-              setRefreshToggle((prev) => !prev);
+              refetchTransactions();
             } catch (error) {
               console.error("Deletion failed:", error);
               Alert.alert("Error", "Failed to delete transaction");
@@ -81,10 +59,11 @@ const transaction = () => {
     );
   };
 
-  if (isLoading) {
+  //  Use the global loading state for initial load visibility
+  if (loading && transactions.length === 0) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-[#ffffff]">
-        <Text>Loading...</Text>
+      <SafeAreaView className="flex-1 items-center justify-center bg-[#0a0a0a]">
+        <Text className="text-white">Loading Transactions...</Text>
       </SafeAreaView>
     );
   }
@@ -97,12 +76,14 @@ const transaction = () => {
   const numOfTransaction = calculateTransactionTotal(transactions);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#ffffff]">
+    <SafeAreaView className="flex-1 bg-[#0a0a0a]">
       {/* Header with title and add button */}
-      <View className="px-5 pt-3 flex-row justify-between items-center">
+      <View className="px-5 pt-5 flex-row justify-between items-center">
         <View>
-          <Text className="text-xl font-rubik-semibold">Transactions</Text>
-          <Text className="text-xs font-rubik-light text-gray-700">
+          <Text className="text-3xl font-rubik-semibold text-white">
+            Transactions
+          </Text>
+          <Text className="text-sm font-rubik-light text-gray-400">
             {numOfTransaction} transactions
           </Text>
         </View>
@@ -110,18 +91,18 @@ const transaction = () => {
           onPress={() => router.push("/newTransaction")}
           className="p-2"
         >
-          <Ionicons name="add-circle" size={32} color="#ffd33d" />
+          <Ionicons name="add-circle" size={36} color="#ffd33d" />
         </TouchableOpacity>
       </View>
 
       <ScrollView>
         <View>
           {/* Search Bar */}
-          <View className="px-5 mt-3">
-            <View className="flex-row items-center bg-white rounded-2xl shadow-md shadow-black/10 px-3 py-3">
-              <Ionicons name="search" size={20} color="#666" />
+          <View className="px-5 mt-4">
+            <View className="flex-row items-center bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 px-4 py-4">
+              <Ionicons name="search" size={22} color="#999" />
               <TextInput
-                className="flex-1 ml-3 text-base font-rubik"
+                className="flex-1 ml-3 text-base font-rubik text-white"
                 placeholder="Search transactions"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -135,36 +116,36 @@ const transaction = () => {
             </View>
           </View>
           {/* Spending Month box */}
-          <View className="flex-row justify-evenly mt-3 px-5 gap-3">
-            <View className="flex-1 bg-white rounded-xl shadow-md shadow-black/10 p-3">
-              <Text className="font-rubik text-xs text-gray-700">
+          <View className="flex-row justify-evenly mt-4 px-5 gap-3">
+            <View className="flex-1 bg-[#1a1a1a] rounded-xl shadow-md shadow-black/50 p-4">
+              <Text className="font-rubik text-xs text-gray-400">
                 TODAY'S SPENDING
               </Text>
-              <Text className="font-rubik-semibold text-lg text-black py-2">
+              <Text className="font-rubik-semibold text-xl text-white py-2">
                 ${todaysSpending.toFixed(2)}
               </Text>
-              <Text className="font-rubik-light text-xs text-gray-700">
+              <Text className="font-rubik-light text-sm text-gray-400">
                 • This week: ${weekTotal.toFixed(2)}
               </Text>
             </View>
-            <View className="flex-1 bg-white rounded-xl shadow-md shadow-black/10 p-3">
-              <Text className="font-rubik text-xs text-gray-700">
+            <View className="flex-1 bg-[#1a1a1a] rounded-xl shadow-md shadow-black/50 p-4">
+              <Text className="font-rubik text-xs text-gray-400">
                 THIS MONTH
               </Text>
-              <Text className="font-rubik-semibold text-lg text-black py-2">
+              <Text className="font-rubik-semibold text-xl text-white py-2">
                 ${monthTotal.toFixed(2)}
               </Text>
-              <Text className="font-rubik-light text-xs text-gray-700">
+              <Text className="font-rubik-light text-sm text-gray-400">
                 • Avg: ${averagePerDay.toFixed(2)}/day
               </Text>
             </View>
           </View>
 
-          <View className="items-start w-full px-5 mt-3 mb-6">
+          <View className="items-start w-full px-5 mt-4 mb-6">
             {groupTransactionsByDate(transactions).map((group) => (
               <View key={group.date} className="w-full mb-4">
                 {/* Date - shown once for all transactions on this date */}
-                <Text className="font-rubik-medium text-sm text-black-300 mb-2">
+                <Text className="font-rubik-medium text-base text-gray-300 mb-3">
                   {formatFriendlyDate(group.date)}
                 </Text>
 
@@ -180,17 +161,17 @@ const transaction = () => {
                       })
                     }
                   >
-                    <View className="bg-white rounded-2xl shadow-md shadow-black/10 p-3 w-full mb-2">
+                    <View className="bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 p-4 w-full mb-2">
                       <View className="flex-row justify-between items-center">
                         <View className="flex-1">
-                          <Text className="font-rubik text-base text-black">
+                          <Text className="font-rubik text-lg text-white">
                             {transaction.description}
                           </Text>
-                          <Text className="text-xs font-rubik text-gray-700 mt-1">
+                          <Text className="text-sm font-rubik text-gray-400 mt-1">
                             {transaction.category}
                           </Text>
                         </View>
-                        <Text className="font-rubik-semibold text-lg text-black ml-3">
+                        <Text className="font-rubik-semibold text-xl text-white ml-3">
                           ${transaction.amount}
                         </Text>
                       </View>

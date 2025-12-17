@@ -29,7 +29,7 @@ export const addIncome = async (incomeData: Income): Promise<Income> => {
   return await response.json();
 };
 
-// Get all incomes from database
+// Get all incomes from database - ROBUST
 export const fetchAllIncome = async (): Promise<Income[]> => {
   const response = await fetch(`${API_URL}/api/incomes`);
 
@@ -37,7 +37,16 @@ export const fetchAllIncome = async (): Promise<Income[]> => {
     throw new Error(`Error: ${response.status}`);
   }
 
-  return await response.json();
+  // 🏆 ROBUST FETCH: Try/Catch for non-JSON success response
+  try {
+    return await response.json();
+  } catch (e) {
+    const rawText = await response.text();
+    console.error("JSON Parse Error on fetchAllIncome. Raw Text:", rawText);
+    throw new Error(
+      `Failed to parse income list: Server returned non-JSON data.`
+    );
+  }
 };
 
 // Get single income from database
@@ -62,7 +71,7 @@ export const deleteIncome = async (id: string): Promise<void> => {
   }
 };
 
-// Update income
+// Update income - ROBUST
 export const updateIncome = async (
   id: string,
   data: UpdateIncomeData
@@ -74,12 +83,21 @@ export const updateIncome = async (
   });
 
   if (!response.ok) {
-    const errorBody = await response.json();
-    throw new Error(
-      errorBody.message ||
-        `Failed to update income with status: ${response.status}`
-    );
+    let errorMessage = `Failed to update income with status: ${response.status}`;
+
+    // 🏆 ROBUST ERROR: Try JSON, but fall back to raw text if parsing fails
+    try {
+      const errorBody = await response.json();
+      errorMessage = errorBody.message || errorMessage;
+    } catch (e) {
+      const rawText = await response.text();
+      console.error("API Error Body (Non-JSON):", rawText);
+      errorMessage = `Server Error: ${rawText.substring(0, 50)}...`;
+    }
+
+    throw new Error(errorMessage);
   }
 
+  // Assume on success the server returns the updated income object
   return await response.json();
 };
