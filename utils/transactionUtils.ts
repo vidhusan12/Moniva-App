@@ -1,43 +1,32 @@
-import { Transaction } from "@/services/transaction";
+import { Transaction } from "@/types/database"; // 🏆 Centralized Firebase Type
 import { isThisMonth, isThisWeek, isToday, parseISO } from "date-fns";
 
-// --- Type Definitions ---
-// Add any extended types here if needed
-// Example: export type TransactionWithCategory = Transaction & { ... }
-
 /**
- * Groups transactions by date.
- * Returns an array of objects with date and transactions for that date.
- * Sorted with newest dates first.
+ * groupTransactionsByDate: Groups transactions for the UI list.
+ * Logic: Uses ISO strings as keys to group spending by day.
  */
 export function groupTransactionsByDate(transactions: Transaction[]): Array<{
   date: string;
   transactions: Transaction[];
 }> {
-  // Step 1: Create groups object
   const groups: Record<string, Transaction[]> = {};
 
-  // Step 2: Loop through all transactions and group by date
   for (const transaction of transactions) {
     const date = transaction.date || "Unknown";
 
-    // If this date doesn't exist yet, create an empty array
     if (!groups[date]) {
       groups[date] = [];
     }
-
-    // Add this transaction to the date's array
     groups[date].push(transaction);
   }
 
-  // Step 3: Convert to array format and sort transactions within each group
   const groupedArray = [];
   for (const date in groups) {
-    // Sort transactions within this date group (newest first)
+    // Sort transactions within each group (newest first)
     const sortedTransactions = groups[date].sort((a, b) => {
       const timeA = new Date(a.date || 0).getTime();
       const timeB = new Date(b.date || 0).getTime();
-      return timeB - timeA; // newest first
+      return timeB - timeA;
     });
 
     groupedArray.push({
@@ -46,18 +35,18 @@ export function groupTransactionsByDate(transactions: Transaction[]): Array<{
     });
   }
 
-  // Step 4: Sort date groups (newest first)
+  // Sort the date groups themselves (most recent days at the top)
   groupedArray.sort((a, b) => {
     const dateA = parseISO(a.date);
     const dateB = parseISO(b.date);
-    return dateB.getTime() - dateA.getTime(); // newest first
+    return dateB.getTime() - dateA.getTime();
   });
 
   return groupedArray;
 }
 
 /**
- * Calculates the total amount for a list of transactions.
+ * calculateTransactionTotal: Returns the COUNT of transactions this month.
  */
 export function calculateTransactionTotal(transactions: Transaction[]): number {
   const TransactionTotalMonth = transactions.filter((transaction) => {
@@ -68,80 +57,45 @@ export function calculateTransactionTotal(transactions: Transaction[]): number {
 }
 
 /**
- * Calculates total spending for today.
+ * calculateTodaySpending: Sum of all spending today.
  */
 export function calculateTodaySpending(transactions: Transaction[]): number {
   const todayTransactions = transactions.filter((transaction) => {
     return transaction.date && isToday(parseISO(transaction.date));
   });
 
-  const total = todayTransactions.reduce((accumulator, transaction) => {
-    return accumulator + transaction.amount;
-  }, 0);
-  return total;
+  return todayTransactions.reduce((acc, t) => acc + t.amount, 0);
 }
 
 /**
- * Calculates total spending for this week.
+ * calculateWeeklySpending: Sum of all spending this week.
  */
 export function calculateWeeklySpending(transactions: Transaction[]): number {
   const weekTransactions = transactions.filter((transaction) => {
     return transaction.date && isThisWeek(parseISO(transaction.date));
   });
 
-  const weekTotal = weekTransactions.reduce((accumulator, transaction) => {
-    return accumulator + transaction.amount;
-  }, 0);
-
-  return weekTotal;
+  return weekTransactions.reduce((acc, t) => acc + t.amount, 0);
 }
 
 /**
- * Calculates total spending for this month.
+ * calculateMonthlySpending: Sum of all spending this month.
  */
 export function calculateMonthlySpending(transactions: Transaction[]): number {
-  const TotalMonthSpending = transactions.filter((transaction) => {
+  const monthTransactions = transactions.filter((transaction) => {
     return transaction.date && isThisMonth(parseISO(transaction.date));
   });
 
-  let monthTransactions = TotalMonthSpending.reduce(
-    (accumulator, transaction) => {
-      return accumulator + transaction.amount;
-    },
-    0
-  );
-  return monthTransactions;
+  return monthTransactions.reduce((acc, t) => acc + t.amount, 0);
 }
 
 /**
- * Calculates average daily spending for the current month.
+ * calculateAverageDailySpending: Month total divided by days passed.
  */
 export function calculateAverageDailySpending(
   transactions: Transaction[]
 ): number {
   const daysPassed = new Date().getDate();
-  const averageSpending = calculateMonthlySpending(transactions) / daysPassed;
-  return averageSpending;
-}
-
-/**
- * Filters transactions by category.
- */
-export function filterByCategory(
-  transactions: Transaction[],
-  category: string
-): Transaction[] {
-  // Your code here
-  return [];
-}
-
-/**
- * Filters transactions by search query (searches in description).
- */
-export function filterBySearchQuery(
-  transactions: Transaction[],
-  query: string
-): Transaction[] {
-  // Your code here
-  return [];
+  const monthlyTotal = calculateMonthlySpending(transactions);
+  return monthlyTotal / daysPassed;
 }

@@ -1,69 +1,62 @@
 import SwipeableRow from "@/components/SwipeableRow";
+import { auth } from "@/config/firebase"; // 🛡️ Required for path security
+import { FinanceService } from "@/services/financeService";
 import { useFinanceStore } from "@/store/financeStore";
+import { calculateNextPayDate } from "@/utils/incomeUtils";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import React, { useMemo } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { deleteIncome } from "../../services/income";
-import { calculateNextPayDate } from "../../utils/incomeUtils";
-import { formatMongoDate } from "../../utils/mongoDate";
 
 const IncomeDetails = () => {
-  // Global state and refetch actions
   const { incomes, loading, refetchIncomes } = useFinanceStore();
 
-  // 5. Function to format the Date object for display (same as before)
-  const formatDateForDisplay = (date: Date) => {
-    return date.toLocaleDateString("en-GB");
-  };
-
+  /**
+   * handleDelete: Removes income from Firebase using the document ID.
+   * Logic: Points to users -> [userId] -> incomes -> [id]
+   */
   const handleDelete = async (id?: string) => {
-    if (!id) {
-      Alert.alert("Error", "No ID provided");
-      return;
-    }
+    if (!id) return;
 
-    Alert.alert(
-      "Confirm Delete",
-      "Are you sure you want to delete this income permanently?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          onPress: async () => {
-            try {
-              await deleteIncome(id);
-              refetchIncomes();
-            } catch (error) {
-              console.error("Deletion failed:", error);
-              Alert.alert("Error", "Failed to delete income");
-            }
-          },
-          style: "destructive",
+    Alert.alert("Confirm Delete", "Permanently delete this income source?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        onPress: async () => {
+          try {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            // Call the unified service for deletion
+            await FinanceService.deleteItem("incomes", user.uid, id);
+            refetchIncomes(); // 🏆 Sync the store
+          } catch (error) {
+            console.error("Deletion failed:", error);
+            Alert.alert("Error", "Failed to delete income");
+          }
         },
-      ]
-    );
+        style: "destructive",
+      },
+    ]);
   };
 
-  // Calculate total income
   const totalIncome = useMemo(() => {
     return incomes.reduce((total, income) => total + income.amount, 0);
   }, [incomes]);
 
-  // 🏆 Use global loading state (this will show loading only during the initial app load)
   if (loading && incomes.length === 0) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-[#0a0a0a]">
-        <Text className="text-white">Loading...</Text>
+        <Text className="text-white">Loading Income...</Text>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView className="flex-1 bg-[#0a0a0a]">
-      {/* Header and Add Button */}
+      {/* Header */}
       <View className="px-5 pt-5 flex-row justify-between items-center">
         <View>
           <Text className="text-3xl font-rubik-semibold text-white">
@@ -82,12 +75,12 @@ const IncomeDetails = () => {
       </View>
 
       <ScrollView>
-        {/* Summary card: total income */}
+        {/* Total Summary Card */}
         <View className="px-5 mt-4">
-          <View className="flex-row justify-between w-full bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 p-5">
+          <View className="flex-row justify-between w-full bg-[#1a1a1a] rounded-2xl p-5 border border-white/5">
             <View className="flex-1">
-              <Text className="font-rubik text-sm text-gray-400">
-                TOTAL INCOME
+              <Text className="font-rubik text-sm text-gray-400 uppercase tracking-widest">
+                Total Income
               </Text>
               <Text className="font-rubik-semibold text-4xl py-2 text-white">
                 ${totalIncome.toFixed(2)}
@@ -102,56 +95,47 @@ const IncomeDetails = () => {
           </View>
         </View>
 
-        {/* Section header: Your Income Sources */}
-        <View className="px-5 mt-5 mb-3">
+        <View className="px-5 mt-6 mb-3">
           <Text className="font-rubik-medium text-base text-gray-300">
-            Your Income Sources ({incomes.length})
+            Your Income Sources
           </Text>
         </View>
 
-        {/* List of income sources with swipe */}
+        {/* List of Incomes */}
         <View className="px-5 mb-4">
           {incomes.map((income) => {
-            // Calculate the next pay date
+            // Logic: Calculate next pay using the startDate ISO string
             const nextPayDate = income.startDate
               ? calculateNextPayDate(income.startDate, income.frequency)
               : null;
-            const nextPayDateString = nextPayDate
-              ? formatDateForDisplay(nextPayDate)
-              : "N/A";
 
             return (
               <SwipeableRow
-                key={income._id}
-                onSwipeLeft={() => handleDelete(income._id)}
+                key={income.id}
+                onSwipeLeft={() => handleDelete(income.id)}
                 onSwipeRight={() =>
                   router.push({
                     pathname: "/newIncome",
-                    params: { id: income._id },
+                    params: { id: income.id },
                   })
                 }
               >
-                <View className="w-full bg-[#1a1a1a] border border-green-600/30 rounded-2xl shadow-md shadow-black/50 mb-3 p-5">
+                <View className="w-full bg-[#1a1a1a] border border-green-600/20 rounded-2xl mb-3 p-5">
                   <View className="flex-row justify-between items-start">
                     <View className="flex-1">
                       <Text className="font-rubik-semibold text-xl text-white">
                         {income.description}
                       </Text>
                       <View className="flex-row items-center mt-2">
-                        <Text className="font-rubik text-sm text-gray-400">
+                        <Text className="font-rubik text-xs text-gray-400">
                           {income.frequency}
                         </Text>
-                        <Text className="font-rubik text-sm text-gray-400 mx-1">
-                          •
-                        </Text>
-                        <Text className="font-rubik text-sm text-gray-400">
-                          Last: {formatMongoDate(income.originalDueDate || "")}
-                        </Text>
-                        <Text className="font-rubik text-sm text-gray-400 mx-1">
-                          •
-                        </Text>
-                        <Text className="font-rubik text-sm text-gray-400">
-                          Next: {nextPayDateString}
+                        <Text className="text-gray-600 mx-2">•</Text>
+                        <Text className="font-rubik text-xs text-gray-400">
+                          Next:{" "}
+                          {nextPayDate
+                            ? nextPayDate.toLocaleDateString("en-GB")
+                            : "N/A"}
                         </Text>
                       </View>
                     </View>

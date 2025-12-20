@@ -1,3 +1,7 @@
+import { auth } from "@/config/firebase";
+import { FinanceService } from "@/services/financeService";
+import { useFinanceStore } from "@/store/financeStore";
+import { Income } from "@/types/database";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -14,10 +18,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { addIncome, fetchIncomeById, updateIncome, Income } from "@/services/income"; // 🏆 NOTE: Adjusted import path for consistency
-import { formatDateForMongo } from "@/utils/mongoDate"; // 🏆 NOTE: Adjusted import path for consistency
-// 🏆 NEW: Import the Zustand store
-import { useFinanceStore } from "@/store/financeStore"; 
 
 const IncomeDetails = () => {
   const params = useLocalSearchParams();
@@ -32,15 +32,18 @@ const IncomeDetails = () => {
 
   const frequencyOptions = ["Weekly", "Fortnightly", "Monthly", "One Time"];
 
-  // 🏆 NEW: Select actions individually (Robust fix for infinite loop)
-  const optimisticallyAddIncome = useFinanceStore(state => state.optimisticallyAddIncome);
-  const optimisticallyRemoveIncome = useFinanceStore(state => state.optimisticallyRemoveIncome);
-  const refetchIncomes = useFinanceStore(state => state.refetchIncomes);
-
+  // Store Selectors
+  const optimisticallyAddIncome = useFinanceStore(
+    (state) => state.optimisticallyAddIncome
+  );
+  const optimisticallyRemoveIncome = useFinanceStore(
+    (state) => state.optimisticallyRemoveIncome
+  );
+  const refetchIncomes = useFinanceStore((state) => state.refetchIncomes);
 
   const onChangeDate = (event: DateTimePickerEvent, selectedDate?: Date) => {
     const currentDate = selectedDate || nextPayDate;
-    setShowDatePicker(Platform.OS === "ios" ? false : false);
+    setShowDatePicker(Platform.OS === "ios");
     setNextPayDate(currentDate);
   };
 
@@ -49,8 +52,19 @@ const IncomeDetails = () => {
       setIsLoading(true);
       const loadIncome = async () => {
         try {
-          // 🏆 NOTE: Fix for fetchIncomeById, ensuring it's relative or absolute path
-          const income = await fetchIncomeById(incomeId);
+          const user = auth.currentUser;
+
+          if (!user) {
+            console.error("No authenticated user found");
+            return;
+          }
+
+          // The Robust Fetch: Use <Income> to label the incoming data
+          const income = await FinanceService.getItemById<Income>(
+            "incomes",
+            user.uid,
+            incomeId
+          );
 
           if (income) {
             setAmount(income.amount.toFixed(2));
@@ -71,9 +85,15 @@ const IncomeDetails = () => {
       loadIncome();
     }
   }, [incomeId]);
+
   
-  // 🏆 REFACTORED: The Core Optimistic Update Logic is now inside handleSubmit
   async function handleSubmit() {
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert("Error", "You must be logged in to save data.");
+      return;
+    }
+
     // 1. Validation (remains the same)
     if (!amount || !description || !frequency || !nextPayDate) {
       Alert.alert("Missing Information", "Please fill in all the information.");
@@ -90,58 +110,83 @@ const IncomeDetails = () => {
     }
 
     // 2. Prepare Data Object
-    const incomeData: Income = {
+    const incomeData = {
       description: description,
       amount: numericAmount,
       frequency: frequency,
-      date: formatDateForMongo(nextPayDate),
+      startDate: nextPayDate.toISOString(),
+      date: nextPayDate.toISOString(),
+      userId: user.uid,
     };
 
     // --- START LOGIC SPLIT: EDIT vs ADD ---
     if (incomeId) {
-        // --- Edit/Update Mode: Standard (Pessimistic) Approach ---
-        try {
-            await updateIncome(incomeId, incomeData);
-            // 🏆 FIX: Refetch after successful update
-            await refetchIncomes(); 
-            router.replace("/income");
-        } catch (error) {
-            console.error("Failed to update income:", error);
-            Alert.alert("Error", "Failed to update income. Please try again.");
-        }
-    } else {
-        // --- Add Mode: OPTIMISTIC Approach ---
-
-        // 1. Add the income to the local store INSTANTLY. 
-        // We create a temporary ID to track this item.
-        const tempIncome: Income = { ...incomeData, _id: `temp-${Date.now()}` };
-        optimisticallyAddIncome(tempIncome);
-        
-        // 2. Navigate away INSTANTLY (UX Win)
+      // --- Edit/Update Mode: Standard (Pessimistic) Approach ---
+      try {
+        await FinanceService.updateItem(
+          "incomes",
+          user.uid,
+          incomeId,
+          incomeData
+        );
+        //  Refetch after successful update
+        await refetchIncomes();
         router.replace("/income");
+      } catch (error) {
+        console.error("Failed to update income:", error);
+        Alert.alert("Error", "Failed to update income. Please try again.");
+      }
+    } else {
+      // --- Add Mode: OPTIMISTIC Approach ---
 
-        // 3. Start the API call in the background
-        try {
-            await addIncome(incomeData);
+      // 1. Add the income to the local store INSTANTLY.
+      // We create a temporary ID to track this item.
+      const tempIncome: Income = { ...incomeData, id: `temp-${Date.now()}` };
+      optimisticallyAddIncome(tempIncome);
 
-            // 4. CONFIRMATION: Refetch all data to replace the temporary ID with the real database ID
-            await refetchIncomes();
-            
-        } catch (error) {
-            // 5. ROLLBACK: If the API failed in the background
-            console.error("Failed to save income:", error);
-            
-            // Rollback the optimistic change (remove the temporary item)
-            optimisticallyRemoveIncome(tempIncome._id!); 
-            
-            // Optional: Re-fetch the clean list from the server
-            // await refetchIncomes(); 
-            
-            Alert.alert("Error", "Failed to save income. Check your connection.");
-        }
+      // 2. Navigate away INSTANTLY (UX Win)
+      router.replace("/income");
+
+      // 3. Start the API call in the background
+      try {
+        await FinanceService.addItem("incomes", user.uid, incomeData);
+
+        // 4. CONFIRMATION: Refetch all data to replace the temporary ID with the real database ID
+        await refetchIncomes();
+      } catch (error) {
+        // 5. ROLLBACK: If the API failed in the background
+        console.error("Failed to save income:", error);
+
+        // Rollback the optimistic change (remove the temporary item)
+        optimisticallyRemoveIncome(tempIncome.id!);
+
+        // Optional: Re-fetch the clean list from the server
+        // await refetchIncomes();
+
+        Alert.alert("Error", "Failed to save income. Check your connection.", [
+          {
+            text: "Try Again",
+            onPress: () => {
+              router.push({
+                pathname: "/newIncome",
+                params: {
+                  description: incomeData.description,
+                  amount: incomeData.amount.toString(),
+                  frequency: incomeData.frequency,
+                  date: incomeData.date,
+                },
+              });
+            },
+          },
+          {
+            text: "Ok",
+            style: "cancel",
+          },
+        ]);
+      }
     }
   }
-  
+
   return (
     <SafeAreaView className="flex-1 bg-[#0a0a0a]">
       <Stack.Screen

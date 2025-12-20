@@ -1,7 +1,8 @@
 import SwipeableRow from "@/components/SwipeableRow";
-import { deleteTransaction } from "@/services/transaction";
+import { auth } from "@/config/firebase";
+import { FinanceService } from "@/services/financeService";
 import { useFinanceStore } from "@/store/financeStore";
-import { formatFriendlyDate } from "@/utils/mongoDate";
+import { formatFriendlyDate } from "@/utils/dateFormatting";
 import {
   calculateAverageDailySpending,
   calculateMonthlySpending,
@@ -24,42 +25,31 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const transaction = () => {
-  // Global state with actions
   const { transactions, loading, refetchTransactions } = useFinanceStore();
   const [searchQuery, setSearchQuery] = useState("");
-  // ❌ The 'isLoading' local state is now unnecessary for data loading but can stay for search/UI loading
-  const [isUiLoading, setIsUiLoading] = useState(false);
-  const [refreshToggle, setRefreshToggle] = useState(false);
 
   const handleDelete = async (id?: string) => {
-    if (!id) {
-      Alert.alert("Error", "No ID Provided");
-      return;
-    }
+    if (!id) return;
 
-    Alert.alert(
-      "Confirm Delete",
-      "Are you sure you want to delete this transaction permanently?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          onPress: async () => {
-            try {
-              await deleteTransaction(id);
-              refetchTransactions();
-            } catch (error) {
-              console.error("Deletion failed:", error);
-              Alert.alert("Error", "Failed to delete transaction");
-            }
-          },
-          style: "destructive",
+    Alert.alert("Confirm Delete", "Permanently delete this transaction?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        onPress: async () => {
+          try {
+            const user = auth.currentUser;
+            if (!user) return;
+            await FinanceService.deleteItem("transactions", user.uid, id);
+            refetchTransactions();
+          } catch (error) {
+            Alert.alert("Error", "Failed to delete transaction");
+          }
         },
-      ]
-    );
+        style: "destructive",
+      },
+    ]);
   };
 
-  //  Use the global loading state for initial load visibility
   if (loading && transactions.length === 0) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-[#0a0a0a]">
@@ -68,7 +58,7 @@ const transaction = () => {
     );
   }
 
-  // Total This Month
+  // Summary Calculations
   const monthTotal = calculateMonthlySpending(transactions);
   const averagePerDay = calculateAverageDailySpending(transactions);
   const todaysSpending = calculateTodaySpending(transactions);
@@ -77,7 +67,7 @@ const transaction = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-[#0a0a0a]">
-      {/* Header with title and add button */}
+      {/* Header */}
       <View className="px-5 pt-5 flex-row justify-between items-center">
         <View>
           <Text className="text-3xl font-rubik-semibold text-white">
@@ -96,91 +86,84 @@ const transaction = () => {
       </View>
 
       <ScrollView>
-        <View>
-          {/* Search Bar */}
-          <View className="px-5 mt-4">
-            <View className="flex-row items-center bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 px-4 py-4">
-              <Ionicons name="search" size={22} color="#999" />
-              <TextInput
-                className="flex-1 ml-3 text-base font-rubik text-white"
-                placeholder="Search transactions"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholderTextColor="#999"
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery("")}>
-                  <Ionicons name="close-circle" size={20} color="#999" />
-                </TouchableOpacity>
-              )}
-            </View>
+        {/* Search Bar - Logic removed as requested */}
+        <View className="px-5 mt-4">
+          <View className="flex-row items-center bg-[#1a1a1a] rounded-2xl px-4 py-4 border border-white/5">
+            <Ionicons name="search" size={20} color="#666" />
+            <TextInput
+              className="flex-1 ml-3 text-base font-rubik text-white"
+              placeholder="Search history"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#666"
+            />
           </View>
-          {/* Spending Month box */}
-          <View className="flex-row justify-evenly mt-4 px-5 gap-3">
-            <View className="flex-1 bg-[#1a1a1a] rounded-xl shadow-md shadow-black/50 p-4">
-              <Text className="font-rubik text-xs text-gray-400">
-                TODAY'S SPENDING
-              </Text>
-              <Text className="font-rubik-semibold text-xl text-white py-2">
-                ${todaysSpending.toFixed(2)}
-              </Text>
-              <Text className="font-rubik-light text-sm text-gray-400">
-                • This week: ${weekTotal.toFixed(2)}
-              </Text>
-            </View>
-            <View className="flex-1 bg-[#1a1a1a] rounded-xl shadow-md shadow-black/50 p-4">
-              <Text className="font-rubik text-xs text-gray-400">
-                THIS MONTH
-              </Text>
-              <Text className="font-rubik-semibold text-xl text-white py-2">
-                ${monthTotal.toFixed(2)}
-              </Text>
-              <Text className="font-rubik-light text-sm text-gray-400">
-                • Avg: ${averagePerDay.toFixed(2)}/day
-              </Text>
-            </View>
+        </View>
+
+        {/* Stats Cards */}
+        <View className="flex-row justify-evenly mt-4 px-5 gap-3">
+          <View className="flex-1 bg-[#1a1a1a] rounded-2xl p-4 border border-white/5">
+            <Text className="font-rubik text-[10px] text-gray-400 uppercase tracking-tighter">
+              Today
+            </Text>
+            <Text className="font-rubik-semibold text-xl text-white py-1">
+              ${todaysSpending.toFixed(2)}
+            </Text>
+            <Text className="font-rubik-light text-[10px] text-gray-500">
+              Weekly: ${weekTotal.toFixed(2)}
+            </Text>
           </View>
+          <View className="flex-1 bg-[#1a1a1a] rounded-2xl p-4 border border-white/5">
+            <Text className="font-rubik text-[10px] text-gray-400 uppercase tracking-tighter">
+              This Month
+            </Text>
+            <Text className="font-rubik-semibold text-xl text-white py-1">
+              ${monthTotal.toFixed(2)}
+            </Text>
+            <Text className="font-rubik-light text-[10px] text-gray-500">
+              Avg: ${averagePerDay.toFixed(2)}/day
+            </Text>
+          </View>
+        </View>
 
-          <View className="items-start w-full px-5 mt-4 mb-6">
-            {groupTransactionsByDate(transactions).map((group) => (
-              <View key={group.date} className="w-full mb-4">
-                {/* Date - shown once for all transactions on this date */}
-                <Text className="font-rubik-medium text-base text-gray-300 mb-3">
-                  {formatFriendlyDate(group.date)}
-                </Text>
+        {/* List */}
+        <View className="px-5 mt-6 mb-10">
+          {groupTransactionsByDate(transactions).map((group) => (
+            <View key={group.date} className="w-full mb-6">
+              <Text className="font-rubik-medium text-xs text-gray-500 uppercase mb-3 px-1">
+                {formatFriendlyDate(group.date)}
+              </Text>
 
-                {/* All transactions for this date */}
-                {group.transactions.map((transaction) => (
-                  <SwipeableRow
-                    key={transaction._id}
-                    onSwipeLeft={() => handleDelete(transaction._id)}
-                    onSwipeRight={() =>
-                      router.push({
-                        pathname: "/newTransaction",
-                        params: { id: transaction._id },
-                      })
-                    }
-                  >
-                    <View className="bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 p-4 w-full mb-2">
-                      <View className="flex-row justify-between items-center">
-                        <View className="flex-1">
-                          <Text className="font-rubik text-lg text-white">
-                            {transaction.description}
-                          </Text>
-                          <Text className="text-sm font-rubik text-gray-400 mt-1">
-                            {transaction.category}
-                          </Text>
-                        </View>
-                        <Text className="font-rubik-semibold text-xl text-white ml-3">
-                          ${transaction.amount}
+              {group.transactions.map((item) => (
+                <SwipeableRow
+                  key={item.id}
+                  onSwipeLeft={() => handleDelete(item.id)}
+                  onSwipeRight={() =>
+                    router.push({
+                      pathname: "/newTransaction",
+                      params: { id: item.id },
+                    })
+                  }
+                >
+                  <View className="bg-[#1a1a1a] rounded-2xl p-4 w-full mb-2 border border-white/5">
+                    <View className="flex-row justify-between items-center">
+                      <View className="flex-1">
+                        <Text className="font-rubik-medium text-base text-white">
+                          {item.description}
+                        </Text>
+                        <Text className="text-xs font-rubik text-gray-500 mt-1">
+                          {item.category}
                         </Text>
                       </View>
+                      <Text className="font-rubik-semibold text-lg text-white ml-3">
+                        ${item.amount.toFixed(2)}
+                      </Text>
                     </View>
-                  </SwipeableRow>
-                ))}
-              </View>
-            ))}
-          </View>
+                  </View>
+                </SwipeableRow>
+              ))}
+            </View>
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>

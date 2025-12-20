@@ -1,11 +1,7 @@
-import {
-  addTransaction,
-  fetchTransactionById,
-  // 🏆 IMPORTANT: Import the Transaction type from your service file
-  Transaction,
-  updateTransaction,
-} from "@/services/transaction";
-import { formatDateForMongo } from "@/utils/mongoDate";
+import { auth } from "@/config/firebase";
+import { FinanceService } from "@/services/financeService";
+import { useFinanceStore } from "@/store/financeStore";
+import { Transaction } from "@/types/database";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, Stack, useLocalSearchParams } from "expo-router";
@@ -20,8 +16,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-// 🏆 CORRECT IMPORT: We need the store
-import { useFinanceStore } from "@/store/financeStore";
 
 const newTransaction = () => {
   const params = useLocalSearchParams();
@@ -34,7 +28,6 @@ const newTransaction = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 🏆 INFINITE LOOP FIX: Select actions individually (most robust method)
   const optimisticallyAddTransaction = useFinanceStore(
     (state) => state.optimisticallyAddTransaction
   );
@@ -62,7 +55,18 @@ const newTransaction = () => {
       setIsLoading(true);
       const loadTransaction = async () => {
         try {
-          const transaction = await fetchTransactionById(transactionId);
+          const user = auth.currentUser;
+          if (!user) {
+            console.error("No authenticated user found");
+            return;
+          }
+
+          // The Robust Fetch: Use <Transaction> to label the incoming data
+          const transaction = await FinanceService.getItemById<Transaction>(
+            "transactions",
+            user.uid,
+            transactionId
+          );
 
           if (transaction) {
             setTitle(transaction.description);
@@ -91,8 +95,13 @@ const newTransaction = () => {
     router.back();
   }
 
-  // REFACTORED: The Optimistic Update Logic
   async function handleAdd() {
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert("Error", "You must be logged in to save data.");
+      return;
+    }
+
     // 1. Validation (remains the same)
     if (!title || !amount || !selectedCategory || !date) {
       Alert.alert("Missing Information", "Please fill in all the information.");
@@ -109,19 +118,24 @@ const newTransaction = () => {
     }
 
     // 2. Prepare Data Object
-    const newTransactionData: Transaction = {
+    const newTransactionData = {
       description: title,
       amount: numericAmount,
       category: selectedCategory,
-      date: formatDateForMongo(new Date()),
+      date: date.toISOString(),
+      userId: user.uid,
     };
 
     // --- START LOGIC SPLIT: EDIT vs ADD ---
-
     if (transactionId) {
       // --- Edit/Update Mode: Standard (Pessimistic) Approach ---
       try {
-        await updateTransaction(transactionId, newTransactionData);
+        await FinanceService.updateItem(
+          "transactions",
+          user.uid,
+          transactionId,
+          newTransactionData
+        );
         await refetchTransactions();
         router.replace("/transaction");
       } catch (error) {
@@ -134,7 +148,7 @@ const newTransaction = () => {
       // 1. Add the transaction to the local store INSTANTLY.
       const tempTransaction: Transaction = {
         ...newTransactionData,
-        _id: `temp-${Date.now()}`,
+        id: `temp-${Date.now()}`,
       };
       optimisticallyAddTransaction(tempTransaction);
 
@@ -143,7 +157,11 @@ const newTransaction = () => {
 
       // 3. Start API call in the background
       try {
-        await addTransaction(newTransactionData);
+        await FinanceService.addItem(
+          "transactions",
+          user.uid,
+          newTransactionData
+        );
 
         // 4. CONFIRMATION: Refetch all data to replace the temporary ID with the real database ID
         await refetchTransactions();
@@ -152,11 +170,31 @@ const newTransaction = () => {
         console.error("Failed to save transaction:", error);
 
         // Rollback the optimistic change (remove the temporary item)
-        optimisticallyRemoveTransaction(tempTransaction._id!);
+        optimisticallyRemoveTransaction(tempTransaction.id!);
 
         Alert.alert(
           "Error",
-          "Failed to save transaction. Check your connection."
+          "Failed to save new transaction. Check your connection.",
+          [
+            {
+              text: "Try Again",
+              onPress: () => {
+                router.push({
+                  pathname: "/newTransaction",
+                  params: {
+                    description: newTransactionData.description,
+                    amount: newTransactionData.amount.toString(),
+                    category: newTransactionData.category,
+                    date: newTransactionData.date,
+                  },
+                });
+              },
+            },
+            {
+              text: "Ok",
+              style: "cancel",
+            },
+          ]
         );
       }
     }

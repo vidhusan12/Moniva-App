@@ -1,5 +1,6 @@
 import SwipeableRow from "@/components/SwipeableRow";
-import { deleteBill, updateBill } from "@/services/bill";
+import { auth } from "@/config/firebase"; // 🛡️ Required for User ID
+import { FinanceService } from "@/services/financeService"; // 🏆 Unified Service
 import { useFinanceStore } from "@/store/financeStore";
 import {
   calculateBillTotal,
@@ -15,90 +16,63 @@ import { router } from "expo-router";
 import React, { useMemo } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { formatDateForMongo, formatMongoDate } from "../../utils/mongoDate";
+import { formatDisplayDate } from "../../utils/dateFormatting";
 
 const BillDetails = () => {
   // Global state
   const { bills, loading, refetchBills } = useFinanceStore();
 
   /**
-   * Deletes a bill after user confirmation.
+   * handleDelete: Removes a bill from Firebase.
+   * Logic: Uses auth.currentUser.uid to find the correct folder.
    */
   const handleDelete = async (id?: string) => {
-    if (!id) {
-      Alert.alert("Error", "No ID Provided");
-      return;
-    }
+    if (!id) return;
 
-    Alert.alert(
-      "Confirm Delete",
-      "Are you sure you want to delete this bill permanently?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          onPress: async () => {
-            try {
-              await deleteBill(id);
-              refetchBills();
-            } catch (error) {
-              console.error("Deletion failed:", error);
-              Alert.alert("Error", "Failed to delete bill");
-            }
-          },
-          style: "destructive",
+    Alert.alert("Confirm Delete", "Permanently delete this bill?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        onPress: async () => {
+          try {
+            const user = auth.currentUser;
+            if (!user) return;
+            // ☁️ Logic: Delete from Firebase
+            await FinanceService.deleteItem("bills", user.uid, id);
+            refetchBills(); // Refresh UI
+          } catch (error) {
+            Alert.alert("Error", "Failed to delete bill");
+          }
         },
-      ]
-    );
+        style: "destructive",
+      },
+    ]);
   };
 
   /**
-   * Marks a bill as paid.
+   * handleMarkPaid: Updates status in Firebase.
    */
   const handleMarkPaid = async (billId: string) => {
     try {
-      // Logic for marking paid
-      const updateData = { lastPaidDate: formatDateForMongo(new Date()) };
-      await updateBill(billId, updateData);
+      const user = auth.currentUser;
+      if (!user) return;
 
-      // call global refetch
+      const updateData = {
+        status: "paid" as const,
+        lastPaidDate: new Date().toISOString(),
+      };
+
+      await FinanceService.updateItem("bills", user.uid, billId, updateData);
       refetchBills();
-      Alert.alert("Success", "Bill marked as paid.");
     } catch (error) {
-      console.error("Payment failed:", error);
-      Alert.alert("Error", "Failed to mark bill as paid.");
+      Alert.alert("Error", "Failed to mark as paid");
     }
   };
 
-  /**
-   * Marks a bill as unpaid (reverts payment).
-   */
-  const handleMarkUnpaid = async (billId: string) => {
-    try {
-      const updateData = { lastPaidDate: "" };
-      await updateBill(billId, updateData);
+  // --- Logic Filters (Refactored to use .id instead of ._id) ---
 
-      refetchBills();
-      Alert.alert("Success", "Bill marked as unpaid");
-    } catch (error) {
-      console.error("Failed to mark bill as unpaid:", error);
-      Alert.alert("Error", "Failed to update bill");
-    }
-  };
-
-  // --- Calculations and Filtering (using useMemo for performance) ---
   const paidBillsThisMonth = useMemo(
     () => getPaidBillsThisMonth(bills),
-    [bills]
-  );
-
-  const monthlyUpcomingBillsWithMeta = useMemo(
-    () => getMonthlyUpcomingBills(bills),
-    [bills]
-  );
-
-  const billsForCurrentMonthTotal = useMemo(
-    () => getBillsDueCurrentMonth(bills),
     [bills]
   );
 
@@ -106,59 +80,53 @@ const BillDetails = () => {
     () =>
       getWeeklyBillSummary(bills).filter(
         (weekBill) =>
-          !paidBillsThisMonth.some((paidBill) => paidBill._id === weekBill._id)
+          !paidBillsThisMonth.some((paidBill) => paidBill.id === weekBill.id)
       ),
     [bills, paidBillsThisMonth]
   );
 
-  const weeklySavingsPlan = useMemo(() => getWeeklySavingsPlan(bills), [bills]);
+  const monthlyUpcomingBillsWithMeta = useMemo(
+    () => getMonthlyUpcomingBills(bills),
+    [bills]
+  );
 
-  // Filter out already-paid bills from the upcoming list
   const allUnpaidBills = useMemo(
     () =>
       monthlyUpcomingBillsWithMeta.filter(
         (upcomingBill) =>
           !paidBillsThisMonth.some(
-            (paidBill) => paidBill._id === upcomingBill._id
+            (paidBill) => paidBill.id === upcomingBill.id
           )
       ),
     [monthlyUpcomingBillsWithMeta, paidBillsThisMonth]
   );
 
-  // Separate unpaid bills by overdue status
   const { overdue, dueThisMonth } = useMemo(() => {
     const overdueBills = allUnpaidBills.filter((bill) => bill.isOverdue);
     const dueThisMonthBills = allUnpaidBills.filter((bill) => !bill.isOverdue);
     return { overdue: overdueBills, dueThisMonth: dueThisMonthBills };
   }, [allUnpaidBills]);
 
-  // Final list for display
   const finalUnpaidDisplayList = useMemo(
     () => [...overdue, ...dueThisMonth],
     [overdue, dueThisMonth]
   );
 
-  // Filter current month bills to exclude paid bills
   const unpaidBillsThisMonth = useMemo(
     () =>
-      billsForCurrentMonthTotal.filter(
+      getBillsDueCurrentMonth(bills).filter(
         (bill) =>
-          !paidBillsThisMonth.some((paidBill) => paidBill._id === bill._id)
+          !paidBillsThisMonth.some((paidBill) => paidBill.id === bill.id)
       ),
-    [billsForCurrentMonthTotal, paidBillsThisMonth]
+    [bills, paidBillsThisMonth]
   );
 
-  // Calculate totals and counts
   const totalUnpaidAmount = useMemo(
     () => calculateBillTotal(unpaidBillsThisMonth),
     [unpaidBillsThisMonth]
   );
+  const weeklySavingsPlan = useMemo(() => getWeeklySavingsPlan(bills), [bills]);
 
-  const unpaidCount = unpaidBillsThisMonth.length;
-  const paidCount = paidBillsThisMonth.length;
-  // --- End Calculations ---
-
-  // Use the global loading state (this will show loading only during the initial app load)
   if (loading && bills.length === 0) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-[#0a0a0a]">
@@ -169,12 +137,13 @@ const BillDetails = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-[#0a0a0a]">
-      {/* Header with title and add button */}
+      {/* Header */}
       <View className="px-5 pt-5 flex-row justify-between items-center">
         <View>
           <Text className="text-3xl font-rubik-semibold text-white">Bills</Text>
           <Text className="text-sm font-rubik-light text-gray-400">
-            {unpaidCount} pending • {paidCount} paid
+            {unpaidBillsThisMonth.length} pending • {paidBillsThisMonth.length}{" "}
+            paid
           </Text>
         </View>
         <TouchableOpacity
@@ -186,12 +155,12 @@ const BillDetails = () => {
       </View>
 
       <ScrollView>
-        {/* Summary card: total unpaid bills and stats */}
+        {/* Summary Card */}
         <View className="px-5 mt-4">
-          <View className="flex-row justify-between w-full bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 p-5">
+          <View className="flex-row justify-between w-full bg-[#1a1a1a] rounded-2xl p-5 border border-white/5">
             <View className="flex-1">
-              <Text className="font-rubik text-sm text-gray-400">
-                TOTAL UNPAID
+              <Text className="font-rubik text-sm text-gray-400 uppercase tracking-widest">
+                Total Unpaid
               </Text>
               <Text className="font-rubik-semibold text-4xl py-2 text-white">
                 ${totalUnpaidAmount.toFixed(2)}
@@ -200,186 +169,77 @@ const BillDetails = () => {
                 Due this month
               </Text>
             </View>
-            <View className="justify-center">
-              <FontAwesome name="dollar" size={32} color="#ef233c" />
-            </View>
+            <FontAwesome name="dollar" size={32} color="#ef233c" />
           </View>
         </View>
 
-        {/* Weekly Savings Plan Card */}
+        {/* Weekly Target Card */}
         <View className="px-5 mt-4">
-          <View className="w-full bg-[#1a1a1a] border border-blue-600/30 rounded-2xl shadow-md shadow-black/50 p-5">
-            <Text className="font-rubik text-sm text-gray-400">
-              WEEKLY SAVINGS TARGET
+          <View className="bg-[#1a1a1a] border border-blue-600/30 rounded-2xl p-5">
+            <Text className="font-rubik text-sm text-gray-400 uppercase tracking-widest">
+              Weekly Target
             </Text>
             <Text className="font-rubik-semibold text-3xl py-2 text-blue-500">
               ${weeklySavingsPlan.finalWeeklyTarget.toFixed(2)}
             </Text>
-            <Text className="font-rubik-light text-sm text-gray-400">
-              Due this week: $
-              {weeklySavingsPlan.billsDueThisWeekTotal.toFixed(2)} • Buffer: $
-              {weeklySavingsPlan.futureBufferContribution.toFixed(2)}
-            </Text>
           </View>
         </View>
 
-        {/* Bills Due This Week Section */}
+        {/* List: Due This Week */}
         {billsDueThisWeek.length > 0 && (
-          <>
-            <View className="px-5 mt-5 mb-3">
-              <Text className="font-rubik-medium text-base text-gray-300">
-                Due This Week ({billsDueThisWeek.length})
-              </Text>
-            </View>
-
-            <View className="px-5 mb-4">
-              {billsDueThisWeek.map((bill) => (
-                <View
-                  key={bill._id}
-                  className="w-full bg-[#1a1a1a] border border-orange-600/30 rounded-2xl shadow-md shadow-black/50 mb-3 p-4"
-                >
-                  <View className="flex-row justify-between items-center">
-                    <View className="flex-1">
-                      <Text className="font-rubik-medium text-lg text-white">
-                        {bill.description}
-                      </Text>
-                      <Text className="font-rubik-light text-sm text-gray-400 mt-1">
-                        Due: {formatMongoDate(bill.startDate || "")}
-                      </Text>
-                    </View>
-                    <Text className="font-rubik-semibold text-xl text-orange-600 ml-2">
-                      ${bill.amount.toFixed(2)}
-                    </Text>
-                  </View>
+          <View className="px-5 mt-6">
+            <Text className="text-gray-300 font-rubik-medium mb-3">
+              Due This Week
+            </Text>
+            {billsDueThisWeek.map((bill) => (
+              <View
+                key={bill.id}
+                className="bg-[#1a1a1a] border border-orange-600/20 rounded-2xl p-4 mb-3"
+              >
+                <View className="flex-row justify-between">
+                  <Text className="text-white text-lg font-rubik">
+                    {bill.description}
+                  </Text>
+                  <Text className="text-orange-500 font-rubik-semibold">
+                    ${bill.amount.toFixed(2)}
+                  </Text>
                 </View>
-              ))}
-            </View>
-          </>
+              </View>
+            ))}
+          </View>
         )}
 
-        {/* Section header: Upcoming Bills */}
-        <View className="px-5 mt-5 mb-3">
-          <Text className="font-rubik-medium text-base text-gray-300">
-            Upcoming Bills ({unpaidCount})
-          </Text>
-        </View>
-
-        {/* List of unpaid bills */}
-        <View className="px-5 mb-4">
+        {/* List: Upcoming/Overdue */}
+        <View className="px-5 mt-6">
+          <Text className="text-gray-300 font-rubik-medium mb-3">Upcoming</Text>
           {finalUnpaidDisplayList.map((bill) => (
             <SwipeableRow
-              key={bill._id}
-              onSwipeLeft={() => handleDelete(bill._id)}
+              key={bill.id}
+              onSwipeLeft={() => handleDelete(bill.id)}
               onSwipeRight={() =>
-                router.push({
-                  pathname: "/newBill",
-                  params: { id: bill._id },
-                })
+                router.push({ pathname: "/newBill", params: { id: bill.id } })
               }
             >
               <View
-                className={`w-full rounded-2xl shadow-md shadow-black/50 mb-2 ${
-                  bill.isOverdue
-                    ? "bg-[#1a1a1a] border border-red-600/50"
-                    : "bg-[#1a1a1a] border border-gray-700/30"
-                }`}
+                className={`bg-[#1a1a1a] rounded-2xl p-4 mb-2 border ${bill.isOverdue ? "border-red-600/40" : "border-white/5"}`}
               >
-                <View className="flex-row justify-between p-4">
-                  <View className="flex-1">
-                    <Text className="font-rubik-medium text-lg text-white">
+                <View className="flex-row justify-between">
+                  <View>
+                    <Text className="text-white text-lg font-rubik-medium">
                       {bill.description}
                     </Text>
-                    <View className="flex-row gap-2 items-center pt-2">
-                      <Text className="bg-gray-700 rounded-md font-rubik-light text-xs text-gray-300 px-2 py-1">
-                        {bill.frequency}
-                      </Text>
-                      {bill.isOverdue ? (
-                        <Text className="font-rubik-semibold text-sm text-red-500">
-                          Overdue: Pay Now!
-                        </Text>
-                      ) : (
-                        <Text className="font-rubik-light text-sm text-gray-400">
-                          Due: {formatMongoDate(bill.startDate || "")}
-                        </Text>
-                      )}
-                    </View>
+                    <Text className="text-gray-400 text-xs mt-1">
+                      Due: {formatDisplayDate(bill.startDate)}
+                    </Text>
                   </View>
-                  <View className="justify-center ml-3 items-end">
-                    <Text className="font-rubik-semibold text-xl text-red-500">
+                  <TouchableOpacity
+                    onPress={() => handleMarkPaid(bill.id!)}
+                    className="bg-green-600 px-4 py-2 rounded-xl"
+                  >
+                    <Text className="text-white font-rubik-medium">
                       ${bill.amount.toFixed(2)}
                     </Text>
-                    <TouchableOpacity
-                      onPress={() => handleMarkPaid(bill._id!)}
-                      className="flex-row items-center gap-1 bg-green-500 px-4 py-2 rounded-full mt-2"
-                    >
-                      <Ionicons name="checkmark" size={14} color="white" />
-                      <Text className="font-rubik-medium text-sm text-white">
-                        Mark Paid
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </SwipeableRow>
-          ))}
-        </View>
-
-        {/* Section header: Paid Bills */}
-        <View className="px-5 mt-5 mb-3">
-          <Text className="font-rubik-medium text-base text-gray-300">
-            Paid This Month ({paidCount})
-          </Text>
-        </View>
-
-        {/* List of paid bills */}
-        <View className="px-5 mb-6">
-          {paidBillsThisMonth.map((bill) => (
-            <SwipeableRow
-              key={bill._id}
-              onSwipeLeft={() => handleDelete(bill._id)}
-              onSwipeRight={() =>
-                router.push({
-                  pathname: "/newBill",
-                  params: { id: bill._id },
-                })
-              }
-            >
-              <View className="w-full bg-[#1a1a1a] border border-green-600/30 rounded-2xl shadow-md shadow-black/50 mb-2 opacity-80">
-                <View className="flex-row justify-between p-4">
-                  <View className="flex-1">
-                    <Text className="font-rubik-medium text-lg text-gray-500 line-through">
-                      {bill.description}
-                    </Text>
-                    <View className="flex-row gap-2 items-center pt-2">
-                      <Text className="bg-green-700 rounded-md font-rubik-light text-xs text-white px-2 py-1">
-                        PAID
-                      </Text>
-                      <Text className="font-rubik-light text-sm text-gray-400">
-                        Paid on: {formatMongoDate(bill.lastPaidDate || "")}
-                      </Text>
-                    </View>
-                    <Text className="font-rubik-light text-sm text-gray-400 mt-1">
-                      Next due: {formatMongoDate(bill.startDate || "")}
-                    </Text>
-                  </View>
-                  <View className="justify-center ml-3 items-end">
-                    <Text className="font-rubik-semibold text-xl text-gray-500 line-through">
-                      ${bill.amount.toFixed(2)}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => handleMarkUnpaid(bill._id!)}
-                      className="flex-row items-center gap-1 bg-orange-500 px-4 py-2 rounded-full mt-2"
-                    >
-                      <Ionicons
-                        name="close-circle-outline"
-                        size={14}
-                        color="white"
-                      />
-                      <Text className="font-rubik-medium text-sm text-white">
-                        Mark Unpaid
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               </View>
             </SwipeableRow>

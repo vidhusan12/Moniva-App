@@ -1,33 +1,26 @@
 import { create } from "zustand";
+import { auth } from "@/config/firebase"; 
+import { FinanceService } from "@/services/financeService"; 
+import { Bill, Income, Transaction } from "@/types/database";
 
-import { Bill, fetchAllBill } from "@/services/bill";
-import { Income, fetchAllIncome } from "@/services/income";
-import { Transaction, fetchAllTransaction } from "@/services/transaction";
-
-// 🏆 FIXED: The interface now includes all optimistic actions
+// 🏆 Interface: Defines what the store holds and what it can do
 interface FinanceState {
-  // Data Arrays (The source of truth)
   incomes: Income[];
   bills: Bill[];
   transactions: Transaction[];
-
-  // State Flags
-  loading: boolean; // General loading state for initial load
+  loading: boolean;
 
   // Actions
-  loadInitialData: () => Promise<void>; // Loads all data at once
+  loadInitialData: () => Promise<void>;
   refetchBills: () => Promise<void>;
   refetchIncomes: () => Promise<void>;
   refetchTransactions: () => Promise<void>;
 
-  // --- NEW OPTIMISTIC ACTIONS (Added to Interface) ---
-  // Transactions
+  // Optimistic Actions
   optimisticallyAddTransaction: (transaction: Transaction) => void;
   optimisticallyRemoveTransaction: (tempId: string) => void;
-  // Bills
   optimisticallyAddBill: (bill: Bill) => void;
   optimisticallyRemoveBill: (tempId: string) => void;
-  // Incomes
   optimisticallyAddIncome: (income: Income) => void;
   optimisticallyRemoveIncome: (tempId: string) => void;
 }
@@ -36,20 +29,24 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   incomes: [],
   bills: [],
   transactions: [],
-  loading: false, // Initial state
+  loading: false,
 
-  // 1. Load All Data (for index.tsx)
+  // 1️⃣ TOP: Initial Load Logic
+  // Why async: Fetching from Firebase is a network request that takes time.
   loadInitialData: async () => {
-    // Only load if the store is empty (e.g., check for bills)
-    if (get().bills.length > 0) return;
+    const user = auth.currentUser;
+    // Guard: Prevent fetching if user is logged out (Firebase needs user.uid)
+    if (!user) return;
 
     set({ loading: true });
     try {
+      // Promise.all runs all three fetches at the same time for speed
       const [incomeData, billData, transactionData] = await Promise.all([
-        fetchAllIncome(),
-        fetchAllBill(),
-        fetchAllTransaction(),
+        FinanceService.getAllItems<Income>("incomes", user.uid),
+        FinanceService.getAllItems<Bill>("bills", user.uid),
+        FinanceService.getAllItems<Transaction>("transactions", user.uid),
       ]);
+
       set({
         incomes: incomeData,
         bills: billData,
@@ -57,71 +54,73 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         loading: false,
       });
     } catch (error) {
-      console.error("Failed to load initial data:", error);
+      console.error("Store Error: Initial Load Failed", error);
       set({ loading: false });
     }
   },
 
-  // 2. Focused Refetchers (for specific screen updates)
+  // 2️⃣ MIDDLE: Refetchers (Pointed to Firebase)
   refetchBills: async () => {
-    const billData = await fetchAllBill();
-    set({ bills: billData });
+    const user = auth.currentUser;
+    if (!user) return;
+    const data = await FinanceService.getAllItems<Bill>("bills", user.uid);
+    set({ bills: data });
   },
 
   refetchIncomes: async () => {
-    const incomeData = await fetchAllIncome();
-    set({ incomes: incomeData });
+    const user = auth.currentUser;
+    if (!user) return;
+    const data = await FinanceService.getAllItems<Income>("incomes", user.uid);
+    set({ incomes: data });
   },
 
   refetchTransactions: async () => {
-    const transactionData = await fetchAllTransaction();
-    set({ transactions: transactionData });
+    const user = auth.currentUser;
+    if (!user) return;
+    const data = await FinanceService.getAllItems<Transaction>("transactions", user.uid);
+    set({ transactions: data });
   },
 
-  // --- OPTIMISTIC IMPLEMENTATIONS ---
-
-  // Transactions
-  optimisticallyAddTransaction: (transaction: Transaction) => {
-    set((state) => ({
-      transactions: [
-        { ...transaction, _id: `temp-${Date.now()}` },
-        ...state.transactions,
-      ],
-    }));
-  },
-  optimisticallyRemoveTransaction: (tempId: string) => {
-    set((state) => ({
-      transactions: state.transactions.filter((t) => t._id !== tempId),
-    }));
-  },
-
-  // Bills (NEW)
+  // 3️⃣ BOTTOM: Optimistic Logic (CLEANED)
+  // Logic: We use 'id' (Firebase style) instead of '_id' (Mongo style)
+  
   optimisticallyAddBill: (bill: Bill) => {
     set((state) => ({
       bills: [
-        { ...bill, _id: `temp-${Date.now()}` },
+        { ...bill, id: `temp-${Date.now()}` }, // id matches Firebase property
         ...state.bills,
       ],
     }));
   },
+
   optimisticallyRemoveBill: (tempId: string) => {
     set((state) => ({
-      bills: state.bills.filter((b) => b._id !== tempId),
+      // Filter out the item using the correct 'id' property
+      bills: state.bills.filter((b) => b.id !== tempId),
     }));
   },
 
-  // Incomes (NEW)
-  optimisticallyAddIncome: (income: Income) => {
+  optimisticallyAddTransaction: (transaction: Transaction) => {
     set((state) => ({
-      incomes: [
-        { ...income, _id: `temp-${Date.now()}` },
-        ...state.incomes,
-      ],
+      transactions: [{ ...transaction, id: `temp-${Date.now()}` }, ...state.transactions],
     }));
   },
+
+  optimisticallyRemoveTransaction: (tempId: string) => {
+    set((state) => ({
+      transactions: state.transactions.filter((t) => t.id !== tempId),
+    }));
+  },
+
+  optimisticallyAddIncome: (income: Income) => {
+    set((state) => ({
+      incomes: [{ ...income, id: `temp-${Date.now()}` }, ...state.incomes],
+    }));
+  },
+
   optimisticallyRemoveIncome: (tempId: string) => {
     set((state) => ({
-      incomes: state.incomes.filter((i) => i._id !== tempId),
+      incomes: state.incomes.filter((i) => i.id !== tempId),
     }));
   },
 }));

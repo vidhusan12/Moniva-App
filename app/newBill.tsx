@@ -1,5 +1,3 @@
-import { addBill, fetchBillById, updateBill, Bill } from "@/services/bill";
-import { formatDateForMongo } from "@/utils/mongoDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -17,7 +15,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 // 🏆 Import the Zustand store
-import { useFinanceStore } from "@/store/financeStore"; 
+import { auth } from "@/config/firebase";
+import { FinanceService } from "@/services/financeService";
+import { useFinanceStore } from "@/store/financeStore";
+import { Bill } from "@/types/database";
 
 const BillDetails = () => {
   const params = useLocalSearchParams();
@@ -28,14 +29,18 @@ const BillDetails = () => {
   const [frequency, setFrequency] = useState("");
   const [nextPayDate, setNextPayDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); 
+  const [isLoading, setIsLoading] = useState(false);
 
   const frequencyOptions = ["Weekly", "Fortnightly", "Monthly", "One Time"];
 
   // 🏆 STABLE SELECTORS: Prevents infinite loops by selecting actions individually
-  const optimisticallyAddBill = useFinanceStore(state => state.optimisticallyAddBill);
-  const optimisticallyRemoveBill = useFinanceStore(state => state.optimisticallyRemoveBill);
-  const refetchBills = useFinanceStore(state => state.refetchBills);
+  const optimisticallyAddBill = useFinanceStore(
+    (state) => state.optimisticallyAddBill
+  );
+  const optimisticallyRemoveBill = useFinanceStore(
+    (state) => state.optimisticallyRemoveBill
+  );
+  const refetchBills = useFinanceStore((state) => state.refetchBills);
 
   const onChangeDate = (event: DateTimePickerEvent, selectedDate?: Date) => {
     const currentDate = selectedDate || nextPayDate;
@@ -48,9 +53,23 @@ const BillDetails = () => {
       setIsLoading(true);
       const loadBill = async () => {
         try {
-          const bill = await fetchBillById(billId);
+          const user = auth.currentUser;
+
+          // 🛡️ The Guard Clause: Stop if no user is found
+          if (!user) {
+            console.error("No authenticated user found");
+            return;
+          }
+
+          // 🏆 The Robust Fetch: Use <Bill> to label the incoming data
+          const bill = await FinanceService.getItemById<Bill>(
+            "bills",
+            user.uid,
+            billId
+          );
 
           if (bill) {
+            // 🔢 Logic: Format the numeric amount for the text input
             setAmount(bill.amount.toFixed(2));
             setDescription(bill.description);
             setFrequency(bill.frequency);
@@ -71,58 +90,101 @@ const BillDetails = () => {
   }, [billId]);
 
   async function handleSubmit() {
-    // 1. Validation
+    // 🛡️ 1. The Gatekeeper: Verify authentication
+    // Why: We can't save data if we don't know who the user is.
+    // If 'user' is null, accessing 'user.uid' would crash the app.
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert("Error", "You must be logged in to save data.");
+      return;
+    }
+
+    // 📝 2. Validation: Ensure all fields are filled
+    // Why: Empty fields in a database cause errors in your UI later (like "NaN" on the dashboard).
     if (!amount || !description || !frequency || !nextPayDate) {
       Alert.alert("Missing Information", "Please fill in all the information.");
       return;
     }
 
+    // 🔢 3. Conversion: Transform string input to a number
+    // Why: TextInputs always return strings. We need a real 'Number' for math later.
     const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
       Alert.alert("Invalid Amount", "Please enter a valid amount.");
       return;
     }
 
-    // 2. Prepare Data Object
-    const billData: Bill = {
+    // 📦 4. Data Preparation: Match your 'Bill' type
+    // We use .toISOString() to save the date as a standardized string.
+    const billData = {
       description: description,
       amount: numericAmount,
       frequency: frequency,
-      startDate: formatDateForMongo(nextPayDate),
-      date: formatDateForMongo(nextPayDate), 
+      startDate: nextPayDate.toISOString(),
+      date: nextPayDate.toISOString(),
+      status: "unpaid" as const,
+      userId: user.uid,
     };
 
+    // --- START LOGIC: EDIT vs ADD ---
     if (billId) {
-        // --- Edit Mode: Standard Approach ---
-        try {
-            await updateBill(billId, billData);
-            await refetchBills(); 
-            router.replace("/bill");
-        } catch (error) {
-            console.error("Failed to update bill:", error);
-            Alert.alert("Error", "Failed to update bill.");
-        }
-    } else {
-        // --- Add Mode: OPTIMISTIC Approach ---
-        
-        // 1. Create a temporary ID and add to UI instantly
-        const tempBill: Bill = { ...billData, _id: `temp-${Date.now()}` };
-        optimisticallyAddBill(tempBill);
-        
-        // 2. Navigate away immediately for a fast feel
+      // --- Edit Mode ---
+      try {
+        // We call updateItem with the specific billId
+        await FinanceService.updateItem("bills", user.uid, billId, billData);
+        await refetchBills();
         router.replace("/bill");
+      } catch (error) {
+        console.error("Failed to update bill:", error);
+        Alert.alert("Error", "Failed to update bill.");
+      }
+    } else {
+      // --- Add Mode: OPTIMISTIC Approach ---
 
-        // 3. Save to database in the background
-        try {
-            await addBill(billData);
-            // 4. Update store with official DB data
-            await refetchBills();
-        } catch (error) {
-            // 5. Rollback on failure
-            console.error("Failed to save bill:", error);
-            optimisticallyRemoveBill(tempBill._id!); 
-            Alert.alert("Error", "Failed to save bill. The entry has been rolled back.");
-        }
+      // A. Create a temporary object for the UI to show immediately
+      const tempBill: Bill = { ...billData, id: `temp-${Date.now()}` };
+      optimisticallyAddBill(tempBill);
+
+      // B. Navigate away instantly so the user doesn't have to wait for the cloud
+      router.replace("/bill");
+
+      // C. Background Task: Save to Firebase
+      try {
+        // Attempt to save to the cloud
+        await FinanceService.addItem("bills", user.uid, billData);
+
+        // Success: Update the store to get the real ID
+        await refetchBills();
+      } catch (error) {
+        // 🚨 ROLLBACK: If the cloud save fails, remove the temp item from the UI
+        console.error("Failed to save bill:", error);
+        optimisticallyRemoveBill(tempBill.id!);
+        Alert.alert(
+          "Save Failed",
+          "We couldn't reach the cloud. Would you like to try again?",
+          [
+            {
+              text: "Try Again",
+              onPress: () => {
+                // 🔄 Logic: Push them back to the form with their data intact
+                router.push({
+                  pathname: "/newBill",
+                  params: {
+                    description: billData.description,
+                    amount: billData.amount.toString(), // Convert number to string for params
+                    frequency: billData.frequency,
+                    startDate: billData.startDate,
+                  },
+                });
+              },
+            },
+            {
+              text: "OK",
+              style: "cancel",
+            },
+          ]
+        );
+      }
     }
   }
 
@@ -131,7 +193,10 @@ const BillDetails = () => {
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <TouchableOpacity onPress={() => router.replace("/bill")} className="p-3 ml-2">
+        <TouchableOpacity
+          onPress={() => router.replace("/bill")}
+          className="p-3 ml-2"
+        >
           <Ionicons name="close" size={32} color="white" />
         </TouchableOpacity>
 
@@ -145,7 +210,9 @@ const BillDetails = () => {
         </View>
 
         <View className="px-5 mt-2">
-          <Text className="text-base font-rubik text-gray-300 mb-2">Description</Text>
+          <Text className="text-base font-rubik text-gray-300 mb-2">
+            Description
+          </Text>
           <View className="bg-[#1a1a1a] rounded-2xl px-4 py-4">
             <TextInput
               className="text-base font-rubik text-white"
@@ -156,7 +223,9 @@ const BillDetails = () => {
             />
           </View>
 
-          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">Amount</Text>
+          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">
+            Amount
+          </Text>
           <View className="bg-[#1a1a1a] rounded-2xl px-4 py-4">
             <TextInput
               className="text-base font-rubik text-white"
@@ -168,7 +237,9 @@ const BillDetails = () => {
             />
           </View>
 
-          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">Frequency</Text>
+          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">
+            Frequency
+          </Text>
           <View className="flex-row flex-wrap justify-between">
             {frequencyOptions.map((option, index) => (
               <TouchableOpacity
@@ -178,14 +249,18 @@ const BillDetails = () => {
                   frequency === option ? "border-2 border-blue-500" : ""
                 }`}
               >
-                <Text className={`text-sm font-rubik ${frequency === option ? "text-blue-500" : "text-gray-300"}`}>
+                <Text
+                  className={`text-sm font-rubik ${frequency === option ? "text-blue-500" : "text-gray-300"}`}
+                >
                   {option}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">Next Payment Date</Text>
+          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">
+            Next Payment Date
+          </Text>
           <TouchableOpacity
             onPress={() => setShowDatePicker(!showDatePicker)}
             className="bg-[#1a1a1a] rounded-2xl px-4 py-4 flex-row items-center justify-between"
@@ -210,7 +285,9 @@ const BillDetails = () => {
               onPress={() => router.replace("/bill")}
               className="flex-1 bg-[#2a2a2a] rounded-xl py-4 items-center"
             >
-              <Text className="text-base font-rubik-medium text-gray-300">Cancel</Text>
+              <Text className="text-base font-rubik-medium text-gray-300">
+                Cancel
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleSubmit}

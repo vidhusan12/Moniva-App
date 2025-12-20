@@ -1,4 +1,4 @@
-import { Income } from "@/services/income";
+import { Income } from "@/types/database"; // 🏆 Centralized Firebase Type
 import {
   addMonths,
   addWeeks,
@@ -54,7 +54,7 @@ export function calculateNextPayDate(
 
 /**
  * Gets all income payments that were RECEIVED this week.
- * Checks the 'date' field (when income was last updated/received).
+ * Logic: Checks the 'date' field (ISO string) against the current week range.
  */
 export function getWeeklyIncome(allIncome: Income[]): IncomeWithNextPayDate[] {
   const today = new Date();
@@ -74,7 +74,7 @@ export function getWeeklyIncome(allIncome: Income[]): IncomeWithNextPayDate[] {
     })
     .filter((income): income is IncomeWithNextPayDate => income !== null)
     .filter((income) => {
-      // Check if the 'date' field (last received) is within this week
+      // Logic: Use 'date' field from Firebase (saved as ISO string)
       if (!income.date) return false;
       const receivedDate = startOfDay(parseISO(income.date));
       const isInWeek = isWithinInterval(receivedDate, {
