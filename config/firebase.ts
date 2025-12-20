@@ -1,20 +1,17 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { 
-  initializeAuth, 
-  getReactNativePersistence 
-} from "firebase/auth";
+import { getReactNativePersistence, initializeAuth } from "firebase/auth";
 
-import { getFirestore } from "firebase/firestore";
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCHoDOoOB_cJq4WrneGQjzah0Qbm2-ubwQ",
-  authDomain: "moniva-67e0b.firebaseapp.com",
-  projectId: "moniva-67e0b",
-  storageBucket: "moniva-67e0b.firebasestorage.app",
-  messagingSenderId: "990486735182",
-  appId: "1:990486735182:web:d1138be2bbd81d9795961f",
-  measurementId: "G-NVLLL34P7H",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // 1. Initialize Firebase App
