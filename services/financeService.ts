@@ -7,11 +7,18 @@ import {
   getDocs,
   serverTimestamp,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { Bill, SavingsGoal, Income } from "@/types/database";
 
 // 🏆 Logic: Define the list of allowed folders once to make it easier to update
-type AllowedCollections = "bills" | "incomes" | "transactions" | "users";
+type AllowedCollections =
+  | "bills"
+  | "incomes"
+  | "transactions"
+  | "savings"
+  | "users";
 
 export const FinanceService = {
   /**
@@ -117,5 +124,48 @@ export const FinanceService = {
       );
       throw error;
     }
+  },
+
+  // OnBoarding
+  async finishOnboarding(userId: string, draftData: any) {
+    // 1 - Create the "Shopping Cart"
+    const batch = writeBatch(db);
+
+    // 2 - Add the Wallet Balance (Profile Update) to the cart
+    const profileRef = doc(db, "users", userId, "profile", "data");
+    batch.set(
+      profileRef,
+      {
+        walletBalance: draftData.walletBalance,
+        hasCompletedOnboarding: true,
+        lastUpdated: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+
+    // 3. Add Incomes to the cart
+     draftData.incomes.map((income: Income) => {
+      const docRef = doc(collection(db, "users", userId, "incomes")) // ref
+       return batch.set(docRef, income) // batch
+     });
+
+    // 4. Add Bills to the cart
+    draftData.bills.map((bill: Bill) => {
+      const docRef = doc(collection(db, "users", userId, "bills")) 
+      return batch.set(docRef, bill) 
+    });
+
+    // 5. Add Bills to the cart
+    draftData.savings.map((saving : SavingsGoal) => {
+      const docRef = doc(collection(db, "users", userId, "savings"))
+      return batch.set(docRef, saving)
+    })
+
+
+
+
+
+    // 6. "Checkout" - Commit the batch
+    await batch.commit();
   },
 };

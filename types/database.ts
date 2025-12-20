@@ -30,3 +30,12 @@ export type Income = {
   date: string;
   userId: string;
 };
+
+export type SavingsGoal = {
+  id?: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  icon?: string;
+  userId: string;
+};

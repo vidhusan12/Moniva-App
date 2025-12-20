@@ -9,6 +9,12 @@ interface FinanceState {
   bills: Bill[];
   transactions: Transaction[];
   loading: boolean;
+  onboardingDraft: {
+    walletBalance: number | null;
+    income: any | null;
+    bills: any[];
+    savings: any[];
+  };
 
   // Actions
   loadInitialData: () => Promise<void>;
@@ -23,13 +29,23 @@ interface FinanceState {
   optimisticallyRemoveBill: (tempId: string) => void;
   optimisticallyAddIncome: (income: Income) => void;
   optimisticallyRemoveIncome: (tempId: string) => void;
+
+
 }
+
+
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
   incomes: [],
   bills: [],
   transactions: [],
   loading: false,
+  onboardingDraft: {
+    walletBalance: null,
+    income: null,
+    bills: [],
+    savings: []
+  },
 
   // 1️⃣ TOP: Initial Load Logic
   // Why async: Fetching from Firebase is a network request that takes time.
