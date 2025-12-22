@@ -2,17 +2,19 @@
 import "react-native-gesture-handler";
 
 // The Root Layout
-import { auth } from "@/config/firebase";
+import { auth, db } from "@/config/firebase"; // 👈 Added db
 import { useFinanceStore } from "@/store/financeStore";
 import { useFonts } from "expo-font";
-import { Stack, router } from "expo-router";
+import { Stack, router, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { onAuthStateChanged } from "firebase/auth";
-import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore"; // 👈 Added Firestore tools
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { UserProvider } from "./context/UserContext";
 import "./global.css";
+
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +22,8 @@ export default function RootLayout() {
   const loadInitialData = useFinanceStore((state) => state.loadInitialData);
   const [user, setUser] = useState<any>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const segments = useSegments();
+  const navigationAttempted = useRef(false);
 
   const [fontsLoaded] = useFonts({
     "Rubik-Regular": require("../assets/fonts/Rubik-Regular.ttf"),
@@ -30,18 +34,13 @@ export default function RootLayout() {
     "Rubik-Light": require("../assets/fonts/Rubik-Light.ttf"),
   });
 
-  // 1. Listen to auth changes - ONLY update state, don't navigate
+  // 1. Listen to auth changes - NO NAVIGATION HERE
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log(
-        "Auth state changed, user:",
-        firebaseUser ? firebaseUser.uid : "null"
-      );
+      console.log("Auth changed:", firebaseUser?.uid);
 
       if (firebaseUser) {
-        console.log("User found, loading initial data...");
         await loadInitialData();
-        console.log("Initial data loaded");
       }
 
       setUser(firebaseUser);
@@ -49,46 +48,62 @@ export default function RootLayout() {
     });
 
     return unsubscribe;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 2. Handle navigation based on auth state - runs AFTER auth is ready
+  // 2. NAVIGATION GUARD - only navigate ONCE on initial load
   useEffect(() => {
-    if (!isAuthReady || !fontsLoaded) return;
+    if (!isAuthReady || !fontsLoaded || navigationAttempted.current) return;
 
-    if (user) {
-      console.log("Navigating to (tabs)");
-      router.replace("/(tabs)");
-    } else {
-      console.log("Navigating to login");
-      router.replace("/(auth)/login");
-    }
+    const checkAndNavigate = async () => {
+      if (user) {
+        // User is logged in - check onboarding status
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          const isOnboardingComplete =
+            userDoc.exists() && userDoc.data()?.isOnboardingComplete;
+
+          if (isOnboardingComplete) {
+            console.log("Logged in + Onboarding done → Tabs");
+            router.replace("/(tabs)");
+          } else {
+            console.log("Logged in + No onboarding → Wallet Setup");
+            router.replace("/(onboarding)/wallet-setup");
+          }
+        } catch (error) {
+          console.error("Error checking onboarding:", error);
+          router.replace("/(tabs)");
+        }
+      } else {
+        // User logged out → Welcome Screen
+        console.log("No user → Welcome Screen");
+        router.replace("/(onboarding)");
+      }
+
+      navigationAttempted.current = true;
+    };
+
+    checkAndNavigate();
   }, [user, isAuthReady, fontsLoaded]);
 
+  // 3. Hide Splash Screen
   useEffect(() => {
-    console.log(`Fonts loaded: ${fontsLoaded}, Auth ready: ${isAuthReady}`);
-    // Only hide the splash once fonts are ready AND auth is determined
     if (fontsLoaded && isAuthReady) {
-      console.log("Hiding splash screen");
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, isAuthReady]);
 
-  // If everything is still loading, show a dark background with a spinner
-  // instead of a blank white screen.
+  // Loading View
   if (!fontsLoaded || !isAuthReady) {
-    // For debugging, you can log the state here
-    // console.log(`Waiting: Fonts loaded: ${fontsLoaded}, Auth ready: ${isAuthReady}`);
     return (
       <View
         style={{
           flex: 1,
-          backgroundColor: "#0a0a0a",
+          backgroundColor: "#000000",
           justifyContent: "center",
           alignItems: "center",
         }}
       >
-        <ActivityIndicator size="large" color="#4895ef" />
+        <ActivityIndicator size="large" color="#2dd4bf" />
       </View>
     );
   }
@@ -96,7 +111,23 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <UserProvider>
-        <Stack screenOptions={{ headerShown: false, animation: "none" }} />
+        <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
+          {/* Auth screens - no layout, declare individually */}
+          <Stack.Screen name="(auth)/login" />
+          <Stack.Screen name="(auth)/signup" />
+
+          {/* Onboarding flow - has its own _layout.tsx */}
+          <Stack.Screen name="(onboarding)" />
+
+          {/* Main app - has its own _layout.tsx */}
+          <Stack.Screen name="(tabs)" />
+
+          {/* Modal/standalone screens */}
+          <Stack.Screen name="newBill" />
+          <Stack.Screen name="newIncome" />
+          <Stack.Screen name="newTransaction" />
+          <Stack.Screen name="+not-found" />
+        </Stack>
       </UserProvider>
     </GestureHandlerRootView>
   );

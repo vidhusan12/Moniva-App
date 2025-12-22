@@ -1,29 +1,35 @@
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import {
-  Text,
-  TouchableOpacity,
-  View,
-  TextInput,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Text,
+  TextInput,
+  TouchableOpacity,
   TouchableWithoutFeedback,
-  Keyboard,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
-import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useUser } from "../../app/context/UserContext";
 
 const FREQUENCIES = ["Weekly", "Fortnightly", "Monthly"];
 
 export default function IncomeSetup() {
-  const { 
-    incomeAmount, setIncomeAmount, 
-    incomeFrequency, setIncomeFrequency,
-    nextPayDate, setNextPayDate,
-    incomeDescription, setIncomeDescription // <--- Get these from context
+  const {
+    incomeAmount,
+    setIncomeAmount,
+    incomeFrequency,
+    setIncomeFrequency,
+    nextPayDate,
+    setNextPayDate,
+    incomeDescription,
+    setIncomeDescription, // <--- Get these from context
   } = useUser();
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -55,7 +61,14 @@ export default function IncomeSetup() {
 
         {/* --- HEADER --- */}
         <View className="mt-4 flex-row items-center justify-between">
-          <TouchableOpacity onPress={() => router.back()} className="p-2 bg-white/10 rounded-full">
+          <TouchableOpacity
+            onPress={() =>
+              router.canGoBack()
+                ? router.back()
+                : router.replace("/(onboarding)")
+            }
+            className="p-2 bg-white/10 rounded-full"
+          >
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
           <View className="flex-row space-x-2">
@@ -75,20 +88,22 @@ export default function IncomeSetup() {
               What is your main source of income?
             </Text>
 
-             {/* 0. DESCRIPTION INPUT (NEW) */}
-             <View className="mb-6 bg-[#1a1a1a] rounded-xl px-4 py-3 border border-white/10">
-                <TextInput 
-                  className="text-white font-rubik-medium text-lg text-center"
-                  placeholder="e.g. Work, Salary"
-                  placeholderTextColor="#666"
-                  value={incomeDescription}
-                  onChangeText={setIncomeDescription}
-                />
-             </View>
-            
+            {/* 0. DESCRIPTION INPUT (NEW) */}
+            <View className="mb-6 bg-[#1a1a1a] rounded-xl px-4 py-3 border border-white/10">
+              <TextInput
+                className="text-white font-rubik-medium text-lg text-center"
+                placeholder="e.g. Work, Salary"
+                placeholderTextColor="#666"
+                value={incomeDescription}
+                onChangeText={setIncomeDescription}
+              />
+            </View>
+
             {/* 1. AMOUNT INPUT */}
             <View className="flex-row justify-center items-center mb-6">
-              <Text className="text-white text-5xl font-rubik-bold mr-2">$</Text>
+              <Text className="text-white text-5xl font-rubik-bold mr-2">
+                $
+              </Text>
               <TextInput
                 className="text-white text-5xl font-rubik-bold min-w-[100px] text-center h-16 leading-none"
                 placeholder="0"
@@ -110,10 +125,14 @@ export default function IncomeSetup() {
                   key={freq}
                   onPress={() => setIncomeFrequency(freq)}
                   className={`px-4 py-3 rounded-xl border ${
-                    incomeFrequency === freq ? "bg-teal-500/20 border-teal-500" : "bg-[#1a1a1a] border-transparent"
+                    incomeFrequency === freq
+                      ? "bg-teal-500/20 border-teal-500"
+                      : "bg-[#1a1a1a] border-transparent"
                   }`}
                 >
-                  <Text className={`font-rubik-medium text-sm ${incomeFrequency === freq ? "text-teal-400" : "text-gray-400"}`}>
+                  <Text
+                    className={`font-rubik-medium text-sm ${incomeFrequency === freq ? "text-teal-400" : "text-gray-400"}`}
+                  >
                     {freq}
                   </Text>
                 </TouchableOpacity>
@@ -128,25 +147,48 @@ export default function IncomeSetup() {
               onPress={() => setShowDatePicker(true)}
               className="bg-[#1a1a1a] rounded-xl py-4 flex-row justify-center items-center border border-white/5 mx-8"
             >
-               <Ionicons name="calendar-outline" size={20} color="#2dd4bf" style={{ marginRight: 10 }} />
-               <Text className="text-white font-rubik-medium text-lg">
-                 {nextPayDate.toLocaleDateString("en-GB", { weekday: 'short', day: 'numeric', month: 'short' })}
-               </Text>
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color="#2dd4bf"
+                style={{ marginRight: 10 }}
+              />
+              <Text className="text-white font-rubik-medium text-lg">
+                {nextPayDate.toLocaleDateString("en-GB", {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                })}
+              </Text>
             </TouchableOpacity>
 
             {/* Date Picker Modal Logic */}
-            {showDatePicker && (
-              Platform.OS === 'ios' ? (
+            {showDatePicker &&
+              (Platform.OS === "ios" ? (
                 <View className="absolute top-20 bg-[#1a1a1a] p-4 rounded-xl border border-gray-800 self-center z-50 shadow-2xl">
-                   <DateTimePicker value={nextPayDate} mode="date" display="inline" onChange={onDateChange} themeVariant="dark" accentColor="#2dd4bf" />
-                   <TouchableOpacity onPress={() => setShowDatePicker(false)} className="mt-2 bg-teal-500 py-2 rounded-lg items-center">
-                     <Text className="text-black font-rubik-bold">Done</Text>
-                   </TouchableOpacity>
+                  <DateTimePicker
+                    value={nextPayDate}
+                    mode="date"
+                    display="inline"
+                    onChange={onDateChange}
+                    themeVariant="dark"
+                    accentColor="#2dd4bf"
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker(false)}
+                    className="mt-2 bg-teal-500 py-2 rounded-lg items-center"
+                  >
+                    <Text className="text-black font-rubik-bold">Done</Text>
+                  </TouchableOpacity>
                 </View>
               ) : (
-                <DateTimePicker value={nextPayDate} mode="date" display="default" onChange={onDateChange} />
-              )
-            )}
+                <DateTimePicker
+                  value={nextPayDate}
+                  mode="date"
+                  display="default"
+                  onChange={onDateChange}
+                />
+              ))}
           </View>
         </KeyboardAvoidingView>
 
@@ -154,13 +196,15 @@ export default function IncomeSetup() {
         <View className="mb-4">
           <TouchableOpacity
             // 👇 UPDATED: Now goes to Bill Setup
-            onPress={() => router.push("/(onboarding)/bill-setup")} 
+            onPress={() => router.push("/(onboarding)/bill-setup")}
             className={`w-full py-5 rounded-full items-center ${
               incomeAmount && incomeDescription ? "bg-teal-500" : "bg-gray-800"
             }`}
             disabled={!incomeAmount || !incomeDescription}
           >
-            <Text className={`font-rubik-bold text-lg ${incomeAmount && incomeDescription ? "text-white" : "text-gray-500"}`}>
+            <Text
+              className={`font-rubik-bold text-lg ${incomeAmount && incomeDescription ? "text-white" : "text-gray-500"}`}
+            >
               Continue
             </Text>
           </TouchableOpacity>

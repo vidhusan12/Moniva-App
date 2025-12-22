@@ -85,7 +85,9 @@ export default function BillSetup() {
       {/* HEADER */}
       <View className="px-6 mt-4 flex-row items-center justify-between">
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace("/(onboarding)")
+          }
           className="p-2 bg-white/10 rounded-full"
         >
           <Ionicons name="arrow-back" size={24} color="white" />

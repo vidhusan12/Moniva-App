@@ -63,7 +63,7 @@ export default function WelcomeScreen() {
           {/* 2. IVA (The Light) */}
           {/* Added -mt-4 to pull it up visually closer to MON */}
           <TouchableOpacity
-            onPress={() => router.push("/(onboarding)/wallet-setup")}
+            onPress={() => router.push("/(auth)/signup")}
             activeOpacity={0.7}
             className="-mt-4"
           >

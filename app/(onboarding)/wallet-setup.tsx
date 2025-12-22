@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useUser } from "../context/UserContext";
-import React, { useState } from "react";
+import React from "react";
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -14,9 +13,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useUser } from "../context/UserContext";
 
 export default function WalletSetup() {
-  const {balance, setBalance} = useUser();
+  const { balance, setBalance } = useUser();
 
   // Logic: Format the input as currency (e.g., 1000 -> 1,000)
   const handleChange = (text: string) => {
@@ -53,7 +53,11 @@ export default function WalletSetup() {
         {/* --- HEADER --- */}
         <View className="mt-4 flex-row items-center justify-between">
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() =>
+              router.canGoBack()
+                ? router.back()
+                : router.replace("/")
+            }
             className="p-2 bg-white/10 rounded-full"
           >
             <Ionicons name="arrow-back" size={24} color="white" />

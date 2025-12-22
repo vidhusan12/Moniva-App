@@ -1,5 +1,4 @@
-import { auth } from "@/config/firebase";
-import { FinanceService } from "@/services/financeService";
+import { auth, db } from "@/config/firebase";
 import { useFinanceStore } from "@/store/financeStore";
 import { calculateBillTotal } from "@/utils/billUtils";
 import { calculateIncomeTotal } from "@/utils/incomeUtils";
@@ -7,6 +6,7 @@ import { calculateMonthlySpending } from "@/utils/transactionUtils";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import React, { useMemo } from "react";
 import {
   Alert,
@@ -62,14 +62,15 @@ const profile = () => {
     const fetchUserProfile = async () => {
       if (firebaseUser?.uid) {
         try {
-          // Logic: Using the 'getItemById' from your FinanceService
-          // We look in the 'users' sub-collection for a doc named 'profile'
-          const profileData = await FinanceService.getItemById<{
-            displayName: string;
-          }>("users", firebaseUser.uid, "profile");
+          // Fetch directly from the user document (not subcollection)
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
 
-          if (profileData?.displayName) {
-            setRealName(profileData.displayName);
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            if (userData?.displayName) {
+              setRealName(userData.displayName);
+            }
           }
         } catch (error) {
           console.log("No custom profile found, using email fallback");
@@ -96,7 +97,7 @@ const profile = () => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.replace("/login");
+      router.replace("/(onboarding)");
     } catch (error) {
       Alert.alert("Error", "Could not log out");
     }
@@ -120,7 +121,7 @@ const profile = () => {
           </View>
 
           <Text className="text-white text-2xl font-rubik-bold mt-4">
-            {realName || firebaseUser?.email?.split('@')[0] || "Guest User"}
+            {realName || firebaseUser?.email?.split("@")[0] || "Guest User"}
           </Text>
           <Text className="text-gray-400 text-base font-rubik">
             {firebaseUser?.email || "No email found"}
