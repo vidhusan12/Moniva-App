@@ -161,10 +161,6 @@ export const FinanceService = {
       return batch.set(docRef, saving)
     })
 
-
-
-
-
     // 6. "Checkout" - Commit the batch
     await batch.commit();
   },

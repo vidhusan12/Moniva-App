@@ -10,12 +10,14 @@ import { formatDisplayDate } from "@/utils/dateFormatting"; // 🏆 Updated impo
 import { getCurrentWeekOfMonth, getWeekDateRange } from "@/utils/dateUtils";
 import { calculateIncomeTotal, getWeeklyIncome } from "@/utils/incomeUtils";
 import { calculateWeeklySpending } from "@/utils/transactionUtils";
-import { useFocusEffect } from "expo-router";
+import { Redirect, useFocusEffect } from "expo-router";
 import React from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const Dashboard = () => {
+  // This temporarily forces the app to open your new onboarding flow
+  return <Redirect href="/(onboarding)" />;
   // 1️⃣ Access Global State
   // Why: We use Zustand so that data is shared across all tabs instantly.
   const { incomes, bills, transactions, loading, loadInitialData } =

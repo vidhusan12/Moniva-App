@@ -11,6 +11,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { UserProvider } from "./context/UserContext";
 import "./global.css";
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -94,7 +95,9 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false, animation: "none" }} />
+      <UserProvider>
+        <Stack screenOptions={{ headerShown: false, animation: "none" }} />
+      </UserProvider>
     </GestureHandlerRootView>
   );
 }
