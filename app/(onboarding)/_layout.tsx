@@ -14,8 +14,11 @@ export default function OnboardingLayout() {
       {/* Step 2: Income Cycle */}
       <Stack.Screen name="income-setup" />
 
-      {/* Step 3: Bills & Final Commit */}
+      {/* Step 3: Bills  */}
       <Stack.Screen name="bill-setup" />
+
+      {/* Step 4: Savings & Final */}
+      <Stack.Screen name="saving-setup" />
     </Stack>
   );
 }

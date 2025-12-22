@@ -58,6 +58,26 @@ export default function BillSetup() {
     if (selectedDate) setDate(selectedDate);
   };
 
+  // The Smart Formatter Logic
+  const handleAmountChange = (text: string) => {
+    // 1. Remove junk (letters, symbols like / * -)
+    let cleaned = text.replace(/[^0-9.]/g, "");
+
+    // 2. Prevent double dots (e.g. 10.5.5)
+    const dots = cleaned.split(".").length - 1;
+    if (dots > 1) return;
+
+    // 3. Format with commas
+    if (cleaned.endsWith(".")) {
+      setAmount(cleaned); // Allow "100." while typing
+    } else if (cleaned.includes(".")) {
+      const [integer, decimal] = cleaned.split(".");
+      setAmount(`${Number(integer).toLocaleString()}.${decimal}`);
+    } else {
+      setAmount(cleaned === "" ? "" : Number(cleaned).toLocaleString());
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-black justify-between">
       <StatusBar style="light" />
@@ -174,7 +194,7 @@ export default function BillSetup() {
                 keyboardType="numeric"
                 className="bg-black/50 text-white p-4 rounded-xl mb-4 text-lg font-rubik border border-white/5"
                 value={amount}
-                onChangeText={setAmount}
+                onChangeText={handleAmountChange}
               />
 
               {/* Frequency Row */}

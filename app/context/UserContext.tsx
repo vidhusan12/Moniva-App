@@ -9,6 +9,13 @@ export interface OnboardingBill {
   date: Date;
 }
 
+// Saving Goal
+export interface onboardingSaving {
+  id: string;
+  name: string;
+  targetAmount: string;
+}
+
 // 1. Define the Shape of our Brain(TypeScript Interface)
 // This tells code editors what data is available so they can autocomplete
 interface UserContextType {
@@ -28,6 +35,11 @@ interface UserContextType {
   bills: OnboardingBill[];
   addBill: (bill: OnboardingBill) => void;
   removeBill: (id: string) => void;
+
+  // Saving Stuff
+  savings: onboardingSaving[];
+  addSaving: (saving: onboardingSaving) => void;
+  removeSaving: (id: string) => void;
 }
 
 // 2. Create teh Context (The empty box)
@@ -40,35 +52,49 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   // Income State
   const [incomeAmount, setIncomeAmount] = useState("");
-  const [incomeFrequency, setIncomeFrequency] = useState("Weekly")
+  const [incomeFrequency, setIncomeFrequency] = useState("Weekly");
   const [nextPayDate, setNextPayDate] = useState(new Date());
-  const [incomeDescription, setIncomeDescription] = useState("")
+  const [incomeDescription, setIncomeDescription] = useState("");
 
   // Bill State
   const [bills, setBills] = useState<OnboardingBill[]>([]);
   const addBill = (bill: OnboardingBill) => {
     setBills((prev) => [...prev, bill]);
-  }
+  };
   const removeBill = (id: string) => {
-    setBills((prev) => prev.filter((b) => b.id !== id))
+    setBills((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  // Saving State
+  const [savings, setSavings] = useState<onboardingSaving[]>([]);
+  const addSaving = (saving: onboardingSaving) => {
+    setSavings((prev) => [...prev, saving]);
+  };
+  const removeSaving = (id: string) => {
+    setSavings((prev) => prev.filter((s) => s.id !== id));
   };
 
   return (
-    <UserContext.Provider value={{ 
-      balance, 
-      setBalance, 
-      incomeAmount, 
-      setIncomeAmount,
-      incomeFrequency,
-      setIncomeFrequency,
-      nextPayDate,
-      setNextPayDate,
-      incomeDescription,
-      setIncomeDescription,
-      bills,
-      addBill,
-      removeBill
-    }}>
+    <UserContext.Provider
+      value={{
+        balance,
+        setBalance,
+        incomeAmount,
+        setIncomeAmount,
+        incomeFrequency,
+        setIncomeFrequency,
+        nextPayDate,
+        setNextPayDate,
+        incomeDescription,
+        setIncomeDescription,
+        bills,
+        addBill,
+        removeBill,
+        savings,
+        addSaving,
+        removeSaving,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );
