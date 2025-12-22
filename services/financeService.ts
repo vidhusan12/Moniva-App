@@ -12,7 +12,7 @@ import {
 import { db } from "../config/firebase";
 import { Bill, SavingsGoal, Income } from "@/types/database";
 
-// 🏆 Logic: Define the list of allowed folders once to make it easier to update
+// 🏆 Logic: Defined list of allowed folders
 type AllowedCollections =
   | "bills"
   | "incomes"
@@ -25,9 +25,9 @@ export const FinanceService = {
    * addItem: Adds a new record to the cloud.
    */
   async addItem(
-    collectionName: AllowedCollections, // ✅ Logic: Use the expanded list
+    collectionName: AllowedCollections,
     userId: string,
-    data: any // Logic: Using 'any' here allows for User data as well as Finance data
+    data: any
   ) {
     try {
       const colRef = collection(db, "users", userId, collectionName);
@@ -49,7 +49,7 @@ export const FinanceService = {
    * updateItem: Edits an existing record.
    */
   async updateItem(
-    collectionName: AllowedCollections, // ✅ Logic: Use the expanded list
+    collectionName: AllowedCollections,
     userId: string,
     itemId: string,
     data: any
@@ -67,7 +67,7 @@ export const FinanceService = {
    * getItemById: Fetches raw data from the Cloud.
    */
   async getItemById<T>(
-    collectionName: AllowedCollections, // ✅ Logic: Use the expanded list
+    collectionName: AllowedCollections,
     userId: string,
     itemId: string
   ): Promise<T | null> {
@@ -90,7 +90,7 @@ export const FinanceService = {
    * getAllItems: Fetches everything in a sub-collection.
    */
   async getAllItems<T>(
-    collectionName: AllowedCollections, // ✅ Logic: Use the expanded list
+    collectionName: AllowedCollections,
     userId: string
   ): Promise<T[]> {
     try {
@@ -110,7 +110,7 @@ export const FinanceService = {
    * deleteItem: Removes a record permanently.
    */
   async deleteItem(
-    collectionName: AllowedCollections, // ✅ Logic: Use the expanded list
+    collectionName: AllowedCollections,
     userId: string,
     itemId: string
   ) {
@@ -126,42 +126,42 @@ export const FinanceService = {
     }
   },
 
-  // OnBoarding
+  // OnBoarding - Atomic Batch Write
   async finishOnboarding(userId: string, draftData: any) {
-    // 1 - Create the "Shopping Cart"
+    // 1 - Create the "Shopping Cart" (Batch)
     const batch = writeBatch(db);
 
-    // 2 - Add the Wallet Balance (Profile Update) to the cart
-    const profileRef = doc(db, "users", userId, "profile", "data");
+    // 2 - Add the Wallet Balance (Profile Update)
+    const profileRef = doc(db, "users", userId);
     batch.set(
       profileRef,
       {
-        walletBalance: draftData.walletBalance,
-        hasCompletedOnboarding: true,
+        currentBalance: draftData.walletBalance,
+        isOnboardingComplete: true,
         lastUpdated: new Date().toISOString(),
       },
       { merge: true }
     );
 
-    // 3. Add Incomes to the cart
-     draftData.incomes.map((income: Income) => {
-      const docRef = doc(collection(db, "users", userId, "incomes")) // ref
-       return batch.set(docRef, income) // batch
-     });
-
-    // 4. Add Bills to the cart
-    draftData.bills.map((bill: Bill) => {
-      const docRef = doc(collection(db, "users", userId, "bills")) 
-      return batch.set(docRef, bill) 
+    // 3. Add Incomes (Safety Check: || [])
+    (draftData.incomes || []).forEach((income: Income) => {
+      const docRef = doc(collection(db, "users", userId, "incomes")); // New auto-ID
+      batch.set(docRef, income);
     });
 
-    // 5. Add Bills to the cart
-    draftData.savings.map((saving : SavingsGoal) => {
-      const docRef = doc(collection(db, "users", userId, "savings"))
-      return batch.set(docRef, saving)
-    })
+    // 4. Add Bills
+    (draftData.bills || []).forEach((bill: Bill) => {
+      const docRef = doc(collection(db, "users", userId, "bills"));
+      batch.set(docRef, bill);
+    });
 
-    // 6. "Checkout" - Commit the batch
+    // 5. Add Savings
+    (draftData.savings || []).forEach((saving: SavingsGoal) => {
+      const docRef = doc(collection(db, "users", userId, "savings"));
+      batch.set(docRef, saving);
+    });
+
+    // 6. "Checkout" - Commit all changes at once
     await batch.commit();
   },
 };

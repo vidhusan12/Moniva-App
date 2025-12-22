@@ -1,13 +1,13 @@
 import { create } from "zustand";
 import { auth } from "@/config/firebase"; 
 import { FinanceService } from "@/services/financeService"; 
-import { Bill, Income, Transaction } from "@/types/database";
+import { Bill, Income, Transaction, SavingsGoal } from "@/types/database"; 
 
-// 🏆 Interface: Defines what the store holds and what it can do
 interface FinanceState {
   incomes: Income[];
   bills: Bill[];
   transactions: Transaction[];
+  savings: SavingsGoal[]; 
   loading: boolean;
   onboardingDraft: {
     walletBalance: number | null;
@@ -21,6 +21,7 @@ interface FinanceState {
   refetchBills: () => Promise<void>;
   refetchIncomes: () => Promise<void>;
   refetchTransactions: () => Promise<void>;
+  refetchSavings: () => Promise<void>; 
 
   // Optimistic Actions
   optimisticallyAddTransaction: (transaction: Transaction) => void;
@@ -29,16 +30,15 @@ interface FinanceState {
   optimisticallyRemoveBill: (tempId: string) => void;
   optimisticallyAddIncome: (income: Income) => void;
   optimisticallyRemoveIncome: (tempId: string) => void;
-
-
+  optimisticallyAddSaving: (saving: SavingsGoal) => void; 
+  optimisticallyRemoveSaving: (tempId: string) => void;   
 }
-
-
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
   incomes: [],
   bills: [],
   transactions: [],
+  savings: [], // 🆕 Init
   loading: false,
   onboardingDraft: {
     walletBalance: null,
@@ -47,26 +47,26 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     savings: []
   },
 
-  // 1️⃣ TOP: Initial Load Logic
-  // Why async: Fetching from Firebase is a network request that takes time.
+  // 1. Initial Load
   loadInitialData: async () => {
     const user = auth.currentUser;
-    // Guard: Prevent fetching if user is logged out (Firebase needs user.uid)
     if (!user) return;
 
     set({ loading: true });
     try {
-      // Promise.all runs all three fetches at the same time for speed
-      const [incomeData, billData, transactionData] = await Promise.all([
+      // Added Savings fetch to Promise.all
+      const [incomeData, billData, transactionData, savingsData] = await Promise.all([
         FinanceService.getAllItems<Income>("incomes", user.uid),
         FinanceService.getAllItems<Bill>("bills", user.uid),
         FinanceService.getAllItems<Transaction>("transactions", user.uid),
+        FinanceService.getAllItems<SavingsGoal>("savings", user.uid),
       ]);
 
       set({
         incomes: incomeData,
         bills: billData,
         transactions: transactionData,
+        savings: savingsData, 
         loading: false,
       });
     } catch (error) {
@@ -75,7 +75,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
   },
 
-  // 2️⃣ MIDDLE: Refetchers (Pointed to Firebase)
+  // 2. Refetchers
   refetchBills: async () => {
     const user = auth.currentUser;
     if (!user) return;
@@ -97,46 +97,36 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     set({ transactions: data });
   },
 
-  // 3️⃣ BOTTOM: Optimistic Logic (CLEANED)
-  // Logic: We use 'id' (Firebase style) instead of '_id' (Mongo style)
-  
-  optimisticallyAddBill: (bill: Bill) => {
-    set((state) => ({
-      bills: [
-        { ...bill, id: `temp-${Date.now()}` }, // id matches Firebase property
-        ...state.bills,
-      ],
-    }));
+  // Added Savings Refetcher
+  refetchSavings: async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    const data = await FinanceService.getAllItems<SavingsGoal>("savings", user.uid);
+    set({ savings: data });
   },
 
-  optimisticallyRemoveBill: (tempId: string) => {
-    set((state) => ({
-      // Filter out the item using the correct 'id' property
-      bills: state.bills.filter((b) => b.id !== tempId),
-    }));
-  },
+  // 3. Optimistic Logic
+  optimisticallyAddBill: (bill) => 
+    set((state) => ({ bills: [{ ...bill, id: `temp-${Date.now()}` }, ...state.bills] })),
 
-  optimisticallyAddTransaction: (transaction: Transaction) => {
-    set((state) => ({
-      transactions: [{ ...transaction, id: `temp-${Date.now()}` }, ...state.transactions],
-    }));
-  },
+  optimisticallyRemoveBill: (tempId) => 
+    set((state) => ({ bills: state.bills.filter((b) => b.id !== tempId) })),
 
-  optimisticallyRemoveTransaction: (tempId: string) => {
-    set((state) => ({
-      transactions: state.transactions.filter((t) => t.id !== tempId),
-    }));
-  },
+  optimisticallyAddTransaction: (transaction) => 
+    set((state) => ({ transactions: [{ ...transaction, id: `temp-${Date.now()}` }, ...state.transactions] })),
 
-  optimisticallyAddIncome: (income: Income) => {
-    set((state) => ({
-      incomes: [{ ...income, id: `temp-${Date.now()}` }, ...state.incomes],
-    }));
-  },
+  optimisticallyRemoveTransaction: (tempId) => 
+    set((state) => ({ transactions: state.transactions.filter((t) => t.id !== tempId) })),
 
-  optimisticallyRemoveIncome: (tempId: string) => {
-    set((state) => ({
-      incomes: state.incomes.filter((i) => i.id !== tempId),
-    }));
-  },
+  optimisticallyAddIncome: (income) => 
+    set((state) => ({ incomes: [{ ...income, id: `temp-${Date.now()}` }, ...state.incomes] })),
+
+  optimisticallyRemoveIncome: (tempId) => 
+    set((state) => ({ incomes: state.incomes.filter((i) => i.id !== tempId) })),
+
+  optimisticallyAddSaving: (saving) => 
+    set((state) => ({ savings: [{ ...saving, id: `temp-${Date.now()}` }, ...state.savings] })),
+
+  optimisticallyRemoveSaving: (tempId) => 
+    set((state) => ({ savings: state.savings.filter((s) => s.id !== tempId) })),
 }));

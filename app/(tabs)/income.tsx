@@ -31,7 +31,7 @@ const IncomeDetails = () => {
 
             // Call the unified service for deletion
             await FinanceService.deleteItem("incomes", user.uid, id);
-            refetchIncomes(); // 🏆 Sync the store
+            refetchIncomes(); // Sync the store
           } catch (error) {
             console.error("Deletion failed:", error);
             Alert.alert("Error", "Failed to delete income");

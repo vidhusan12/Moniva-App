@@ -10,11 +10,14 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,10 +28,9 @@ const IncomeDetails = () => {
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [frequency, setFrequency] = useState("");
+  const [frequency, setFrequency] = useState("Monthly");
   const [nextPayDate, setNextPayDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Used only for initial fetch
 
   const frequencyOptions = ["Weekly", "Fortnightly", "Monthly", "One Time"];
 
@@ -41,281 +43,227 @@ const IncomeDetails = () => {
   );
   const refetchIncomes = useFinanceStore((state) => state.refetchIncomes);
 
-  const onChangeDate = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    const currentDate = selectedDate || nextPayDate;
-    setShowDatePicker(Platform.OS === "ios");
-    setNextPayDate(currentDate);
-  };
-
+  // Load Data
   useEffect(() => {
     if (incomeId) {
-      setIsLoading(true);
       const loadIncome = async () => {
-        try {
-          const user = auth.currentUser;
-
-          if (!user) {
-            console.error("No authenticated user found");
-            return;
-          }
-
-          // The Robust Fetch: Use <Income> to label the incoming data
-          const income = await FinanceService.getItemById<Income>(
-            "incomes",
-            user.uid,
-            incomeId
-          );
-
-          if (income) {
-            setAmount(income.amount.toFixed(2));
-            setDescription(income.description);
-            setFrequency(income.frequency);
-
-            if (income.date) {
-              setNextPayDate(new Date(income.date));
-            }
-          }
-        } catch (error) {
-          Alert.alert("Error", "Failed to load income details for editing");
-          router.replace("/income");
-        } finally {
-          setIsLoading(false);
+        const user = auth.currentUser;
+        if (!user) return;
+        const income = await FinanceService.getItemById<Income>(
+          "incomes",
+          user.uid,
+          incomeId
+        );
+        if (income) {
+          setAmount(income.amount.toString());
+          setDescription(income.description);
+          setFrequency(income.frequency);
+          if (income.date) setNextPayDate(new Date(income.date));
         }
       };
       loadIncome();
     }
   }, [incomeId]);
 
-  
+  const onChangeDate = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === "android") setShowDatePicker(false);
+    if (selectedDate) setNextPayDate(selectedDate);
+  };
+
+  const handleAmountChange = (text: string) => {
+    let cleaned = text.replace(/[^0-9.]/g, "");
+    if (cleaned.split(".").length > 2) return;
+    setAmount(cleaned);
+  };
+
   async function handleSubmit() {
     const user = auth.currentUser;
-    if (!user) {
-      Alert.alert("Error", "You must be logged in to save data.");
+    if (!user) return;
+
+    if (!amount || !description || !frequency) {
+      Alert.alert("Missing Info", "Please fill in all fields.");
       return;
     }
 
-    // 1. Validation (remains the same)
-    if (!amount || !description || !frequency || !nextPayDate) {
-      Alert.alert("Missing Information", "Please fill in all the information.");
-      return;
-    }
-
-    const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert(
-        "Invalid Amount",
-        "Please enter a valid amount greater than zero."
-      );
-      return;
-    }
-
-    // 2. Prepare Data Object
     const incomeData = {
-      description: description,
-      amount: numericAmount,
-      frequency: frequency,
+      description,
+      amount: parseFloat(amount),
+      frequency,
       startDate: nextPayDate.toISOString(),
       date: nextPayDate.toISOString(),
       userId: user.uid,
     };
 
-    // --- START LOGIC SPLIT: EDIT vs ADD ---
     if (incomeId) {
-      // --- Edit/Update Mode: Standard (Pessimistic) Approach ---
-      try {
-        await FinanceService.updateItem(
-          "incomes",
-          user.uid,
-          incomeId,
-          incomeData
-        );
-        //  Refetch after successful update
-        await refetchIncomes();
-        router.replace("/income");
-      } catch (error) {
-        console.error("Failed to update income:", error);
-        Alert.alert("Error", "Failed to update income. Please try again.");
-      }
+      await FinanceService.updateItem(
+        "incomes",
+        user.uid,
+        incomeId,
+        incomeData
+      );
+      await refetchIncomes();
+      router.back();
     } else {
-      // --- Add Mode: OPTIMISTIC Approach ---
+      const tempId = `temp-${Date.now()}`;
+      optimisticallyAddIncome({ ...incomeData, id: tempId });
+      router.back();
 
-      // 1. Add the income to the local store INSTANTLY.
-      // We create a temporary ID to track this item.
-      const tempIncome: Income = { ...incomeData, id: `temp-${Date.now()}` };
-      optimisticallyAddIncome(tempIncome);
-
-      // 2. Navigate away INSTANTLY (UX Win)
-      router.replace("/income");
-
-      // 3. Start the API call in the background
       try {
         await FinanceService.addItem("incomes", user.uid, incomeData);
-
-        // 4. CONFIRMATION: Refetch all data to replace the temporary ID with the real database ID
         await refetchIncomes();
       } catch (error) {
-        // 5. ROLLBACK: If the API failed in the background
-        console.error("Failed to save income:", error);
-
-        // Rollback the optimistic change (remove the temporary item)
-        optimisticallyRemoveIncome(tempIncome.id!);
-
-        // Optional: Re-fetch the clean list from the server
-        // await refetchIncomes();
-
-        Alert.alert("Error", "Failed to save income. Check your connection.", [
-          {
-            text: "Try Again",
-            onPress: () => {
-              router.push({
-                pathname: "/newIncome",
-                params: {
-                  description: incomeData.description,
-                  amount: incomeData.amount.toString(),
-                  frequency: incomeData.frequency,
-                  date: incomeData.date,
-                },
-              });
-            },
-          },
-          {
-            text: "Ok",
-            style: "cancel",
-          },
-        ]);
+        optimisticallyRemoveIncome(tempId);
+        Alert.alert("Error", "Failed to save income.");
       }
     }
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0a0a0a]">
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView className="flex-1 bg-black justify-between px-6">
+        <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        {/* Back Button */}
-        <TouchableOpacity
-          onPress={() => router.replace("/income")}
-          className="p-3 ml-2"
-        >
-          <Ionicons name="close" size={32} color="white" />
-        </TouchableOpacity>
-        {/* Header */}
-        <View className="px-5 pt-2 items-start">
-          <Text className="text-2xl font-rubik-semibold text-white">
-            {incomeId ? "Edit Income" : "Add Income"}
-          </Text>
-          <Text className="text-sm font-rubik-light text-gray-400 mb-3">
-            Add your income details
-          </Text>
-        </View>
-        {/* Description box */}
-        <View className="px-5 mt-2">
-          <Text className="text-base font-rubik text-gray-300 mb-2">
-            Description
-          </Text>
-          <View className="bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 px-4 py-4">
-            <TextInput
-              className="text-base font-rubik text-white"
-              placeholder="e.g. Salary, Side Hustle"
-              value={description}
-              onChangeText={setDescription}
-              placeholderTextColor="#999"
-              style={{ minHeight: 20 }}
-            />
-          </View>
-          {/* Amount Box */}
-          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">
-            Amount
-          </Text>
-          <View className="bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 px-4 py-4">
-            <TextInput
-              className="text-base font-rubik text-white"
-              placeholder="Enter Amount"
-              keyboardType="numeric"
-              value={amount}
-              onChangeText={setAmount}
-              placeholderTextColor="#999"
-              style={{ minHeight: 20 }}
-            />
-          </View>
-          {/* Frequency Box */}
-          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">
-            Frequency
-          </Text>
-          <View className="flex-row flex-wrap justify-between">
-            {frequencyOptions.map((option, index) => (
-              <TouchableOpacity
-                key={index}
-                onPress={() => setFrequency(option)}
-                className={`w-[48%] bg-[#1a1a1a] rounded-xl shadow-md shadow-black/50 p-3 mb-2 items-center ${
-                  frequency === option ? "border-2 border-blue-500" : ""
-                }`}
-              >
-                <Text
-                  className={`text-sm font-rubik mt-1 ${
-                    frequency === option
-                      ? "text-blue-500 font-rubik-semibold"
-                      : "text-gray-300"
-                  }`}
-                >
-                  {option}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {/* Next Pay Date Box */}
-          <Text className="text-base font-rubik text-gray-300 mb-2 mt-4">
-            Next Pay Date
-          </Text>
+        {/* HEADER */}
+        <View className="mt-4 flex-row justify-between items-center">
           <TouchableOpacity
-            onPress={() => setShowDatePicker(!showDatePicker)}
-            className="bg-[#1a1a1a] rounded-2xl shadow-md shadow-black/50 px-4 py-4 flex-row items-center justify-between"
+            onPress={() => router.back()}
+            className="p-2 bg-white/10 rounded-full"
           >
-            <Text className="text-base font-rubik text-white">
-              {nextPayDate.toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })}
-            </Text>
-            <Ionicons name="calendar-outline" size={20} color="#999" />
+            <Ionicons name="close" size={24} color="white" />
           </TouchableOpacity>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={nextPayDate}
-              mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={onChangeDate}
-            />
-          )}
-
-          {/* Buttons */}
-          <View className="flex-row justify-between mt-8 mb-4 gap-4">
-            <TouchableOpacity
-              onPress={() => router.back()}
-              className="flex-1 bg-[#2a2a2a] rounded-xl py-4 items-center"
-            >
-              <Text className="text-base font-rubik-medium text-gray-300">
-                Cancel
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleSubmit}
-              className="flex-1 bg-blue-500 rounded-xl py-4 items-center"
-            >
-              <Text className="text-base font-rubik-medium text-white">
-                {incomeId ? "Update Income" : "Add Income"}
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+
+        {/* MAIN FORM */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
+        >
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 100 }}
+          >
+            <Text className="text-white text-3xl font-rubik-bold mt-4 text-center">
+              {incomeId ? "Edit Income" : "New Income"}
+            </Text>
+            <Text className="text-gray-500 text-center font-rubik mb-10 mt-1">
+              Add your salary or side hustle
+            </Text>
+
+            {/* Description Input */}
+            <View className="bg-[#1a1a1a] rounded-2xl px-5 py-4 mb-4 border border-white/5">
+              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1">
+                Source Name
+              </Text>
+              <TextInput
+                className="text-white text-xl font-rubik-medium"
+                placeholder="e.g. Salary"
+                placeholderTextColor="#444"
+                value={description}
+                onChangeText={setDescription}
+              />
+            </View>
+
+            {/* Amount Input */}
+            <View className="bg-[#1a1a1a] rounded-2xl px-5 py-4 mb-4 border border-white/5">
+              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1">
+                Amount
+              </Text>
+              <View className="flex-row items-center">
+                <Text className="text-teal-500 text-xl font-rubik-bold mr-1">
+                  $
+                </Text>
+                <TextInput
+                  className="text-white text-xl font-rubik-medium flex-1"
+                  placeholder="0.00"
+                  placeholderTextColor="#444"
+                  keyboardType="numeric"
+                  value={amount}
+                  onChangeText={handleAmountChange}
+                />
+              </View>
+            </View>
+
+            {/* Frequency Selector */}
+            <View className="mb-4">
+              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-2 ml-2">
+                Frequency
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {frequencyOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => setFrequency(option)}
+                    className={`px-4 py-3 rounded-xl border ${
+                      frequency === option
+                        ? "bg-teal-500/20 border-teal-500"
+                        : "bg-[#1a1a1a] border-white/5"
+                    }`}
+                  >
+                    <Text
+                      className={`font-rubik-medium text-sm ${frequency === option ? "text-teal-400" : "text-gray-400"}`}
+                    >
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Date Picker */}
+            <View className="bg-[#1a1a1a] rounded-2xl px-5 py-4 mb-4 border border-white/5">
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(!showDatePicker)}
+                className="flex-row justify-between items-center"
+              >
+                <View>
+                  <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1">
+                    Next Pay Date
+                  </Text>
+                  <Text className="text-white text-xl font-rubik-medium">
+                    {nextPayDate.toLocaleDateString("en-GB", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    })}
+                  </Text>
+                </View>
+                <Ionicons name="calendar-outline" size={24} color="#666" />
+              </TouchableOpacity>
+
+              {showDatePicker && (
+                <View className="mt-4">
+                  <DateTimePicker
+                    value={nextPayDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    onChange={onChangeDate}
+                    themeVariant="dark"
+                    textColor="white"
+                  />
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+
+        {/* FOOTER BUTTON */}
+        <View className="mb-4">
+          <TouchableOpacity
+            onPress={handleSubmit}
+            className={`w-full py-5 rounded-full items-center ${
+              amount && description ? "bg-teal-500" : "bg-gray-800"
+            }`}
+            disabled={!amount || !description}
+          >
+            <Text
+              className={`font-rubik-bold text-lg ${amount && description ? "text-white" : "text-gray-500"}`}
+            >
+              {incomeId ? "Update Income" : "Add Income"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 };
 

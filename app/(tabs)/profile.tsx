@@ -1,13 +1,9 @@
 import { auth, db } from "@/config/firebase";
-import { useFinanceStore } from "@/store/financeStore";
-import { calculateBillTotal } from "@/utils/billUtils";
-import { calculateIncomeTotal } from "@/utils/incomeUtils";
-import { calculateMonthlySpending } from "@/utils/transactionUtils";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import React, { useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -18,264 +14,97 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-interface MenuItemProps {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  onPress: () => void;
-  color?: string;
-  isLast?: boolean;
-}
-
-const MenuItem = ({
-  icon,
-  title,
-  onPress,
-  color = "white",
-  isLast,
-}: MenuItemProps) => (
-  <TouchableOpacity
-    onPress={onPress}
-    className={`flex-row items-center p-4 ${!isLast ? "border-b border-white/5" : ""}`}
+const MenuRow = ({ icon, label, onPress, color = "white", subtitle }: any) => (
+  <TouchableOpacity 
+    onPress={onPress} 
+    className="flex-row items-center bg-[#1a1a1a] p-4 rounded-2xl mb-3 border border-white/5"
   >
-    <View className="w-10 h-10 bg-gray-800/50 rounded-full items-center justify-center mr-4">
-      <Ionicons
-        name={icon}
-        size={20}
-        color={color === "#ef4444" ? color : "#3b82f6"}
-      />
+    <View className="w-10 h-10 rounded-full bg-white/5 items-center justify-center mr-4">
+      <Ionicons name={icon} size={20} color={color} />
     </View>
-    <Text style={{ color }} className="flex-1 font-rubik-medium text-base">
-      {title}
-    </Text>
-    <Ionicons name="chevron-forward" size={18} color="#4b5563" />
+    <View className="flex-1">
+        <Text className="text-white font-rubik-medium text-lg">{label}</Text>
+        {subtitle && <Text className="text-gray-500 text-xs font-rubik mt-0.5">{subtitle}</Text>}
+    </View>
+    <Ionicons name="chevron-forward" size={20} color="#666" />
   </TouchableOpacity>
 );
 
-const profile = () => {
-  const { incomes, bills, transactions } = useFinanceStore();
-  const firebaseUser = auth.currentUser;
+const MoreMenu = () => {
+  const user = auth.currentUser;
+  const [userName, setUserName] = useState("User");
 
-  const [realName, setRealName] = React.useState<string>("");
-
-  // Fetch profile data when the screen loads
-  React.useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (firebaseUser?.uid) {
-        try {
-          // Fetch directly from the user document (not subcollection)
-          const userDocRef = doc(db, "users", firebaseUser.uid);
-          const userDocSnap = await getDoc(userDocRef);
-
-          if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            if (userData?.displayName) {
-              setRealName(userData.displayName);
-            }
-          }
-        } catch (error) {
-          console.log("No custom profile found, using email fallback");
+  useEffect(() => {
+    const fetchName = async () => {
+      if (user) {
+        const docSnap = await getDoc(doc(db, "users", user.uid));
+        if (docSnap.exists()) {
+          setUserName(docSnap.data().displayName || "User");
         }
       }
     };
-
-    fetchUserProfile();
-  }, [firebaseUser]);
-
-  // Memoized Math
-  const totalIncome = useMemo(() => calculateIncomeTotal(incomes), [incomes]);
-  const totalBills = useMemo(() => calculateBillTotal(bills), [bills]);
-  const totalSpent = useMemo(
-    () => calculateMonthlySpending(transactions),
-    [transactions]
-  );
-
-  //Split numbers for the "Big Dollar, Small Cents" UI effect
-  const [incomeWhole, incomeCents] = (totalIncome || 0).toFixed(2).split(".");
-  const [billWhole, billCents] = (totalBills || 0).toFixed(2).split(".");
-  const [spentWhole, spentCents] = (totalSpent || 0).toFixed(2).split(".");
+    fetchName();
+  }, [user]);
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.replace("/(onboarding)");
-    } catch (error) {
-      Alert.alert("Error", "Could not log out");
-    }
+    Alert.alert("Log Out", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      { 
+        text: "Log Out", 
+        style: "destructive", 
+        onPress: async () => {
+          await signOut(auth);
+          router.replace("/(onboarding)");
+        } 
+      }
+    ]);
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0a0a0a]">
+    <SafeAreaView className="flex-1 bg-[#0a0a0a] px-6">
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header Section */}
-        <View className="items-center mt-8 px-6">
-          <View className="relative">
+        
+        {/* Simple Header */}
+        <View className="items-center mt-6 mb-8">
             <Image
-              source={{
-                uri: `https://ui-avatars.com/api/?name=${firebaseUser?.email || "User"}&background=0D8ABC&color=fff`,
-              }}
-              className="w-24 h-24 rounded-full border-2 border-blue-500"
+                source={{ uri: `https://ui-avatars.com/api/?name=${userName}&background=0D8ABC&color=fff` }}
+                className="w-20 h-20 rounded-full border-4 border-[#1a1a1a]"
             />
-            <TouchableOpacity className="bottom-0 absolute right-0 bg-blue-500 p-2 rounded-full border-2 border-[#0a0a0a]">
-              <Ionicons name="camera" size={16} color="white" />
-            </TouchableOpacity>
-          </View>
-
-          <Text className="text-white text-2xl font-rubik-bold mt-4">
-            {realName || firebaseUser?.email?.split("@")[0] || "Guest User"}
-          </Text>
-          <Text className="text-gray-400 text-base font-rubik">
-            {firebaseUser?.email || "No email found"}
-          </Text>
+            <Text className="text-white text-xl font-rubik-bold mt-3">{userName}</Text>
+            <Text className="text-gray-500 text-sm font-rubik">{user?.email}</Text>
         </View>
 
-        {/* Interactive Stats Row */}
-        <View className="flex-row justify-between bg-[#1a1a1a] mx-4 mt-6 p-4 rounded-2xl border border-white/5">
-          {/* Saving Rate - Could lead to a 'Savings' or 'Goals' screen */}
-          <TouchableOpacity
-            className="items-center flex-1"
-            onPress={() => router.push("/savings")}
-          >
-            <Text className="text-gray-400 text-[10px] font-rubik uppercase tracking-widest">
-              Saved
-            </Text>
-            <Text className="text-blue-400 text-base font-rubik-bold mt-1">
-              24%
-            </Text>
-          </TouchableOpacity>
+        {/* SETTINGS GROUP */}
+        <Text className="text-gray-500 font-rubik-medium text-xs uppercase tracking-widest mb-3 ml-1">
+          Settings
+        </Text>
 
-          <View className="w-[1px] h-8 bg-white/10 self-center" />
+        <MenuRow 
+            icon="person" 
+            label="Edit Profile" 
+            onPress={() => router.push("/profile")} 
+            color="#2dd4bf"
+        />
 
-          {/* Income - Navigates to income.tsx */}
-          <TouchableOpacity
-            className="items-center flex-1"
-            onPress={() => router.push("/income")}
-          >
-            <Text className="text-gray-400 text-[10px] font-rubik uppercase tracking-widest">
-              Income
-            </Text>
-            <View className="flex-row items-baseline mt-1">
-              <Text className="text-white text-base font-rubik-bold">
-                ${incomeWhole}
-              </Text>
-              <Text className="text-white text-[10px] font-rubik-medium">
-                .{incomeCents}
-              </Text>
-            </View>
-          </TouchableOpacity>
+        <MenuRow 
+            icon="shield-checkmark" 
+            label="Privacy & Security" 
+            onPress={() => Alert.alert("Coming Soon")} 
+            color="#3b82f6"
+        />
 
-          <View className="w-[1px] h-8 bg-white/10 self-center" />
+        {/* LOGOUT */}
+        <TouchableOpacity 
+            onPress={handleLogout}
+            className="flex-row items-center justify-center bg-red-500/10 p-4 rounded-2xl mt-8 mb-10 border border-red-500/20"
+        >
+            <Ionicons name="log-out-outline" size={20} color="#ef4444" style={{ marginRight: 8 }} />
+            <Text className="text-red-500 font-rubik-medium">Log Out</Text>
+        </TouchableOpacity>
 
-          {/* Bills - Navigates to bill.tsx */}
-          <TouchableOpacity
-            className="items-center flex-1"
-            onPress={() => router.push("/bill")}
-          >
-            <Text className="text-gray-400 text-[10px] font-rubik uppercase tracking-widest">
-              Bills
-            </Text>
-            <View className="flex-row items-baseline mt-1">
-              <Text className="text-white text-base font-rubik-bold">
-                ${billWhole}
-              </Text>
-              <Text className="text-white text-[10px] font-rubik-medium">
-                .{billCents}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          <View className="w-[1px] h-8 bg-white/10 self-center" />
-
-          {/* Spending - Navigates to transaction.tsx */}
-          <TouchableOpacity
-            className="items-center flex-1"
-            onPress={() => router.push("/transaction")}
-          >
-            <Text className="text-gray-400 text-[10px] font-rubik uppercase tracking-widest">
-              Spent
-            </Text>
-            <View className="flex-row items-baseline mt-1">
-              <Text className="text-white text-base font-rubik-bold">
-                ${spentWhole}
-              </Text>
-              <Text className="text-white text-[10px] font-rubik-medium">
-                .{spentCents}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Reports Section (Future Charts) */}
-        <View className="px-6 mt-8">
-          <Text className="text-gray-400 text-sm font-rubik-medium uppercase tracking-widest mb-4">
-            Reports & Analytics
-          </Text>
-          <TouchableOpacity
-            className="bg-[#1a1a1a] p-6 rounded-2xl border border-dashed border-gray-700 items-center justify-center"
-            onPress={() => alert("Charts coming soon!")}
-          >
-            <Ionicons name="bar-chart-outline" size={32} color="#3b82f6" />
-            <Text className="text-gray-500 font-rubik mt-2 text-center">
-              Spending & Income Trends (Coming Soon)
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Settings Menu */}
-        <View className="px-6 mt-8 mb-10">
-          <Text className="text-gray-400 text-sm font-rubik-medium uppercase tracking-widest mb-4">
-            Account & App
-          </Text>
-
-          <View className="bg-[#1a1a1a] rounded-2xl overflow-hidden">
-            <MenuItem
-              icon="person-outline"
-              title="Account Settings"
-              onPress={() => {
-                Alert.alert("Coming Soon");
-              }}
-            />
-            <MenuItem
-              icon="notifications-outline"
-              title="Notifications"
-              onPress={() => {
-                Alert.alert("Coming Soon");
-              }}
-            />
-            <MenuItem
-              icon="moon-outline"
-              title="Appearance"
-              onPress={() => {
-                Alert.alert("Coming Soon");
-              }}
-            />
-            <MenuItem
-              icon="shield-checkmark-outline"
-              title="Privacy & Security"
-              onPress={() => {
-                Alert.alert("Coming Soon");
-              }}
-            />
-            <MenuItem
-              icon="log-out-outline"
-              title="Log Out"
-              color="#ef4444"
-              isLast
-              onPress={() => {
-                Alert.alert("Log Out", "Are you sure you want to log out?", [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Log Out",
-                    onPress: handleLogout,
-                    style: "destructive",
-                  },
-                ]);
-              }}
-            />
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-export default profile;
+export default MoreMenu;

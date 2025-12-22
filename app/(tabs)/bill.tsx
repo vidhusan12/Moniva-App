@@ -10,25 +10,23 @@ import {
   getWeeklyBillSummary,
   getWeeklySavingsPlan,
 } from "@/utils/billUtils";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { formatDisplayDate } from "@/utils/dateFormatting";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import React, { useMemo } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { formatDisplayDate } from "../../utils/dateFormatting";
 
 const BillDetails = () => {
-  // Global state
+  // Access Global State
   const { bills, loading, refetchBills } = useFinanceStore();
 
-  /**
-   * handleDelete: Removes a bill from Firebase.
-   * Logic: Uses auth.currentUser.uid to find the correct folder.
-   */
+
+  // ACTIONS (Delete, Pay, Unpay)
+
+
   const handleDelete = async (id?: string) => {
     if (!id) return;
-
     Alert.alert("Confirm Delete", "Permanently delete this bill?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -37,9 +35,8 @@ const BillDetails = () => {
           try {
             const user = auth.currentUser;
             if (!user) return;
-            // ☁️ Logic: Delete from Firebase
             await FinanceService.deleteItem("bills", user.uid, id);
-            refetchBills(); // Refresh UI
+            refetchBills();
           } catch (error) {
             Alert.alert("Error", "Failed to delete bill");
           }
@@ -49,19 +46,14 @@ const BillDetails = () => {
     ]);
   };
 
-  /**
-   * handleMarkPaid: Updates status in Firebase.
-   */
   const handleMarkPaid = async (billId: string) => {
     try {
       const user = auth.currentUser;
       if (!user) return;
-
       const updateData = {
         status: "paid" as const,
         lastPaidDate: new Date().toISOString(),
       };
-
       await FinanceService.updateItem("bills", user.uid, billId, updateData);
       refetchBills();
     } catch (error) {
@@ -69,12 +61,27 @@ const BillDetails = () => {
     }
   };
 
-  // --- Logic Filters (Refactored to use .id instead of ._id) ---
+  // Ability to "Unpay" (Undo) a bill
+  const handleMarkUnpaid = async (billId: string) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      const updateData = {
+        status: "unpaid" as const,
+        lastPaidDate: null, // Remove the date
+      };
+      await FinanceService.updateItem("bills", user.uid, billId, updateData);
+      refetchBills();
+    } catch (error) {
+      Alert.alert("Error", "Failed to unpay bill");
+    }
+  };
 
-  const paidBillsThisMonth = useMemo(
-    () => getPaidBillsThisMonth(bills),
-    [bills]
-  );
+
+  //MATH & FILTERS (Your Original Logic)
+ 
+
+  const paidBillsThisMonth = useMemo(() => getPaidBillsThisMonth(bills), [bills]);
 
   const billsDueThisWeek = useMemo(
     () =>
@@ -94,9 +101,7 @@ const BillDetails = () => {
     () =>
       monthlyUpcomingBillsWithMeta.filter(
         (upcomingBill) =>
-          !paidBillsThisMonth.some(
-            (paidBill) => paidBill.id === upcomingBill.id
-          )
+          !paidBillsThisMonth.some((paidBill) => paidBill.id === upcomingBill.id)
       ),
     [monthlyUpcomingBillsWithMeta, paidBillsThisMonth]
   );
@@ -115,8 +120,7 @@ const BillDetails = () => {
   const unpaidBillsThisMonth = useMemo(
     () =>
       getBillsDueCurrentMonth(bills).filter(
-        (bill) =>
-          !paidBillsThisMonth.some((paidBill) => paidBill.id === bill.id)
+        (bill) => !paidBillsThisMonth.some((paidBill) => paidBill.id === bill.id)
       ),
     [bills, paidBillsThisMonth]
   );
@@ -127,6 +131,7 @@ const BillDetails = () => {
   );
   const weeklySavingsPlan = useMemo(() => getWeeklySavingsPlan(bills), [bills]);
 
+  // Loading State
   if (loading && bills.length === 0) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-[#0a0a0a]">
@@ -137,81 +142,98 @@ const BillDetails = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-[#0a0a0a]">
-      {/* Header */}
-      <View className="px-5 pt-5 flex-row justify-between items-center">
+      
+      {/* HEADER */}
+      <View className="px-5 pt-5 flex-row justify-between items-center mb-6">
         <View>
           <Text className="text-3xl font-rubik-semibold text-white">Bills</Text>
           <Text className="text-sm font-rubik-light text-gray-400">
-            {unpaidBillsThisMonth.length} pending • {paidBillsThisMonth.length}{" "}
-            paid
+            {unpaidBillsThisMonth.length} pending • {paidBillsThisMonth.length} paid
           </Text>
         </View>
         <TouchableOpacity
           onPress={() => router.push("/newBill")}
-          className="p-2"
+          className="w-12 h-12 bg-white/10 rounded-full items-center justify-center border border-white/5"
         >
-          <Ionicons name="add-circle" size={36} color="#ffd33d" />
+          <Ionicons name="add" size={28} color="white" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView>
-        {/* Summary Card */}
-        <View className="px-5 mt-4">
-          <View className="flex-row justify-between w-full bg-[#1a1a1a] rounded-2xl p-5 border border-white/5">
-            <View className="flex-1">
-              <Text className="font-rubik text-sm text-gray-400 uppercase tracking-widest">
-                Total Unpaid
-              </Text>
-              <Text className="font-rubik-semibold text-4xl py-2 text-white">
-                ${totalUnpaidAmount.toFixed(2)}
-              </Text>
-              <Text className="font-rubik-light text-sm text-gray-400">
-                Due this month
-              </Text>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        
+        {/* STATS CARDS (Premium Look) */}
+        <View className="flex-row px-5 gap-3 mb-8">
+            
+            {/* Total Unpaid */}
+            <View className="flex-1 bg-[#1a1a1a] rounded-3xl p-4 border border-red-500/20">
+                <View className="w-10 h-10 bg-red-500/10 rounded-full items-center justify-center mb-3">
+                    <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                </View>
+                <Text className="font-rubik text-[10px] text-gray-500 uppercase tracking-widest mb-1">
+                    Total Unpaid
+                </Text>
+                <Text className="font-rubik-semibold text-2xl text-white">
+                    ${totalUnpaidAmount.toFixed(2)}
+                </Text>
+                <Text className="font-rubik text-[10px] text-gray-500 mt-1">
+                    Due this month
+                </Text>
             </View>
-            <FontAwesome name="dollar" size={32} color="#ef233c" />
-          </View>
+
+            {/* Weekly Target */}
+            <View className="flex-1 bg-[#1a1a1a] rounded-3xl p-4 border border-blue-500/20">
+                <View className="w-10 h-10 bg-blue-500/10 rounded-full items-center justify-center mb-3">
+                    <Ionicons name="shield-checkmark" size={20} color="#3b82f6" />
+                </View>
+                <Text className="font-rubik text-[10px] text-gray-500 uppercase tracking-widest mb-1">
+                    Weekly Target
+                </Text>
+                <Text className="font-rubik-semibold text-2xl text-white">
+                    ${weeklySavingsPlan.finalWeeklyTarget.toFixed(2)}
+                </Text>
+                <Text className="font-rubik text-[10px] text-gray-500 mt-1">
+                    Save this week
+                </Text>
+            </View>
         </View>
 
-        {/* Weekly Target Card */}
-        <View className="px-5 mt-4">
-          <View className="bg-[#1a1a1a] border border-blue-600/30 rounded-2xl p-5">
-            <Text className="font-rubik text-sm text-gray-400 uppercase tracking-widest">
-              Weekly Target
-            </Text>
-            <Text className="font-rubik-semibold text-3xl py-2 text-blue-500">
-              ${weeklySavingsPlan.finalWeeklyTarget.toFixed(2)}
-            </Text>
-          </View>
-        </View>
-
-        {/* List: Due This Week */}
+        {/* LIST: DUE THIS WEEK (High Priority) */}
         {billsDueThisWeek.length > 0 && (
-          <View className="px-5 mt-6">
-            <Text className="text-gray-300 font-rubik-medium mb-3">
+          <View className="px-5 mb-6">
+            <Text className="text-gray-500 font-rubik-medium mb-3 uppercase text-xs tracking-widest px-1">
               Due This Week
             </Text>
             {billsDueThisWeek.map((bill) => (
               <View
                 key={bill.id}
-                className="bg-[#1a1a1a] border border-orange-600/20 rounded-2xl p-4 mb-3"
+                className="border border-orange-500/30 bg-orange-500/5 rounded-2xl p-4 mb-3 flex-row justify-between items-center"
               >
-                <View className="flex-row justify-between">
-                  <Text className="text-white text-lg font-rubik">
-                    {bill.description}
-                  </Text>
-                  <Text className="text-orange-500 font-rubik-semibold">
-                    ${bill.amount.toFixed(2)}
-                  </Text>
+                <View className="flex-row items-center gap-3">
+                    <View className="w-10 h-10 bg-orange-500/10 rounded-full items-center justify-center">
+                        <Ionicons name="time" size={20} color="#f97316" />
+                    </View>
+                    <View>
+                        <Text className="text-white text-lg font-rubik-medium">
+                            {bill.description}
+                        </Text>
+                        <Text className="text-orange-400 font-bold text-xs mt-1">
+                            Due Soon
+                        </Text>
+                    </View>
                 </View>
+                <Text className="text-white font-rubik-semibold text-lg">
+                    ${bill.amount.toFixed(2)}
+                </Text>
               </View>
             ))}
           </View>
         )}
 
-        {/* List: Upcoming/Overdue */}
-        <View className="px-5 mt-6">
-          <Text className="text-gray-300 font-rubik-medium mb-3">Upcoming</Text>
+        {/* LIST: UPCOMING & OVERDUE */}
+        <View className="px-5 mb-6">
+          <Text className="text-gray-500 font-rubik-medium mb-3 uppercase text-xs tracking-widest px-1">
+              Upcoming
+          </Text>
           {finalUnpaidDisplayList.map((bill) => (
             <SwipeableRow
               key={bill.id}
@@ -221,23 +243,25 @@ const BillDetails = () => {
               }
             >
               <View
-                className={`bg-[#1a1a1a] rounded-2xl p-4 mb-2 border ${bill.isOverdue ? "border-red-600/40" : "border-white/5"}`}
+                className={`bg-[#1a1a1a] rounded-2xl p-4 mb-3 border ${bill.isOverdue ? "border-red-600/40" : "border-white/5"}`}
               >
-                <View className="flex-row justify-between">
-                  <View>
+                <View className="flex-row justify-between items-center">
+                  <View className="flex-1">
                     <Text className="text-white text-lg font-rubik-medium">
                       {bill.description}
                     </Text>
-                    <Text className="text-gray-400 text-xs mt-1">
-                      Due: {formatDisplayDate(bill.startDate)}
+                    <Text className={`text-xs mt-1 font-rubik ${bill.isOverdue ? "text-red-400 font-bold" : "text-gray-400"}`}>
+                      {bill.isOverdue ? "Overdue" : "Due"}: {formatDisplayDate(bill.startDate)}
                     </Text>
                   </View>
+                  
+                  {/* Pay Button */}
                   <TouchableOpacity
                     onPress={() => handleMarkPaid(bill.id!)}
-                    className="bg-green-600 px-4 py-2 rounded-xl"
+                    className="bg-green-600/20 px-4 py-2 rounded-xl border border-green-600/50"
                   >
-                    <Text className="text-white font-rubik-medium">
-                      ${bill.amount.toFixed(2)}
+                    <Text className="text-green-400 font-rubik-semibold">
+                      Pay ${bill.amount.toFixed(0)}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -245,6 +269,50 @@ const BillDetails = () => {
             </SwipeableRow>
           ))}
         </View>
+
+        {/* LIST: PAID BILLS (Restored Feature) */}
+        {paidBillsThisMonth.length > 0 && (
+            <View className="px-5 pb-20">
+                <Text className="text-gray-500 font-rubik-medium mb-3 uppercase text-xs tracking-widest px-1">
+                    Paid This Month
+                </Text>
+                {paidBillsThisMonth.map((bill) => (
+                    <SwipeableRow
+                        key={bill.id}
+                        onSwipeLeft={() => handleDelete(bill.id)}
+                        onSwipeRight={() =>
+                            router.push({ pathname: "/newBill", params: { id: bill.id } })
+                        }
+                    >
+                        <View className="bg-[#1a1a1a] rounded-2xl p-4 mb-3 border border-white/5 opacity-50">
+                            <View className="flex-row justify-between items-center">
+                                <View className="flex-row items-center gap-3">
+                                    <View className="w-8 h-8 bg-green-500/20 rounded-full items-center justify-center">
+                                        <Ionicons name="checkmark" size={16} color="#4ade80" />
+                                    </View>
+                                    <View>
+                                        <Text className="text-gray-300 text-lg font-rubik-medium line-through">
+                                            {bill.description}
+                                        </Text>
+                                        <Text className="text-gray-500 text-xs">
+                                            Paid
+                                        </Text>
+                                    </View>
+                                </View>
+                                
+                                {/* UNPAY BUTTON (Undo) */}
+                                <TouchableOpacity
+                                    onPress={() => handleMarkUnpaid(bill.id!)}
+                                    className="p-2"
+                                >
+                                    <Ionicons name="refresh" size={20} color="#666" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </SwipeableRow>
+                ))}
+            </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
