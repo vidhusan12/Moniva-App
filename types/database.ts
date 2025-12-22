@@ -38,4 +38,5 @@ export type SavingsGoal = {
   currentAmount: number;
   icon?: string;
   userId: string;
+  createdAt?: string;
 };
