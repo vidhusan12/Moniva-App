@@ -15,6 +15,25 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useUser } from "../context/UserContext";
 
+const retro = {
+  bg: "bg-[#FFFDF5]",
+  btnShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+  },
+  colors: {
+    yellow: "#ffd33d",
+    teal: "#2EC4B6",
+    red: "#ef233c",
+    green: "#10b981",
+    orange: "#fb923c",
+    blue: "#3b82f6",
+    purple: "#a855f7",
+  },
+};
+
 export default function WalletSetup() {
   const { balance, setBalance } = useUser();
 
@@ -47,27 +66,40 @@ export default function WalletSetup() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <SafeAreaView className="flex-1 bg-black justify-between px-6">
-        <StatusBar style="light" />
+      <SafeAreaView className={`flex-1 ${retro.bg} justify-between px-6`}>
+        {/* Decorative background shapes */}
+        <View
+          className="absolute top-32 right-8 w-14 h-14 bg-[#ffd33d] rounded-full border-2 border-black opacity-15"
+          style={retro.btnShadow}
+        />
+        <View
+          className="absolute top-64 left-8 w-10 h-10 bg-[#3b82f6] rounded-xl border-2 border-black opacity-15 rotate-12"
+          style={retro.btnShadow}
+        />
+        <View
+          className="absolute bottom-48 right-12 w-12 h-12 bg-[#10b981] rounded-lg border-2 border-black opacity-15"
+          style={retro.btnShadow}
+        />
+
+        <StatusBar style="dark" />
 
         {/* --- HEADER --- */}
         <View className="mt-4 flex-row items-center justify-between">
           <TouchableOpacity
             onPress={() =>
-              router.canGoBack()
-                ? router.back()
-                : router.replace("/")
+              router.canGoBack() ? router.back() : router.replace("/")
             }
-            className="p-2 bg-white/10 rounded-full"
+            className="p-2 bg-[#ffd33d] rounded-full border-2 border-black"
+            style={retro.btnShadow}
           >
-            <Ionicons name="arrow-back" size={24} color="white" />
+            <Ionicons name="arrow-back" size={24} color="black" />
           </TouchableOpacity>
 
           {/* Progress Indicator (Step 1 of 3) */}
           <View className="flex-row space-x-2">
-            <View className="w-8 h-1 bg-teal-500 rounded-full" />
-            <View className="w-8 h-1 bg-gray-800 rounded-full" />
-            <View className="w-8 h-1 bg-gray-800 rounded-full" />
+            <View className="w-8 h-1 bg-[#2EC4B6] rounded-full border border-black" />
+            <View className="w-8 h-1 bg-gray-300 rounded-full border border-black" />
+            <View className="w-8 h-1 bg-gray-300 rounded-full border border-black" />
           </View>
         </View>
 
@@ -77,19 +109,19 @@ export default function WalletSetup() {
           className="flex-1 justify-center"
         >
           <View>
-            <Text className="text-gray-400 font-rubik text-lg mb-4 text-center">
+            <Text className="text-gray-500 font-rubik-bold text-lg mb-4 text-center uppercase">
               How much do you have right now?
             </Text>
 
             <View className="flex-row justify-center items-center">
-              <Text className="text-white text-5xl font-rubik-bold mr-2">
+              <Text className="text-black text-5xl font-rubik-bold mr-2">
                 $
               </Text>
 
               <TextInput
-                className="text-white text-5xl font-rubik-bold min-w-[100px] text-center h-16 leading-none"
+                className="text-black text-5xl font-rubik-bold min-w-[100px] text-center h-16 leading-none"
                 placeholder="0"
-                placeholderTextColor="#333"
+                placeholderTextColor="#ccc"
                 keyboardType="numeric"
                 autoFocus={true}
                 value={balance}
@@ -98,7 +130,7 @@ export default function WalletSetup() {
               />
             </View>
 
-            <Text className="text-gray-600 text-sm mt-4 text-center">
+            <Text className="text-gray-500 text-sm mt-4 text-center font-rubik-bold">
               Include cash, bank accounts, and savings.
             </Text>
           </View>
@@ -112,13 +144,14 @@ export default function WalletSetup() {
               // In the future, we will SAVE this data here
               router.push("/(onboarding)/income-setup");
             }}
-            className={`w-full py-5 rounded-full items-center ${
-              balance ? "bg-teal-500" : "bg-gray-800"
+            className={`w-full py-5 rounded-xl items-center border-2 border-black ${
+              balance ? "bg-[#2EC4B6]" : "bg-gray-300"
             }`}
+            style={balance ? retro.btnShadow : undefined}
             disabled={!balance} // Disable if empty
           >
             <Text
-              className={`font-rubik-bold text-lg ${
+              className={`font-rubik-bold text-lg uppercase tracking-tight ${
                 balance ? "text-white" : "text-gray-500"
               }`}
             >

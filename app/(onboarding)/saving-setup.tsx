@@ -16,6 +16,32 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useUser } from "../../app/context/UserContext";
 
 export default function SavingSetup() {
+  const retro = {
+    bg: "bg-[#FFFDF5]",
+    card: "bg-white rounded-xl border-2 border-black",
+    shadow: {
+      shadowColor: "#000",
+      shadowOffset: { width: 3, height: 3 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+    },
+    btnShadow: {
+      shadowColor: "#000",
+      shadowOffset: { width: 2, height: 2 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+    },
+    colors: {
+      yellow: "#ffd33d",
+      teal: "#2EC4B6",
+      red: "#ef233c",
+      green: "#10b981",
+      orange: "#fb923c",
+      blue: "#3b82f6",
+      purple: "#a855f7",
+    },
+  };
+
   const { savings, addSaving, removeSaving } = useUser();
 
   // Modal & Form State
@@ -65,8 +91,22 @@ export default function SavingSetup() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-black justify-between">
-      <StatusBar style="light" />
+    <SafeAreaView className={`flex-1 ${retro.bg} justify-between`}>
+      {/* Decorative background shapes */}
+      <View
+        className="absolute top-32 right-8 w-14 h-14 bg-[#a855f7] rounded-full border-2 border-black opacity-15"
+        style={retro.btnShadow}
+      />
+      <View
+        className="absolute top-64 left-8 w-10 h-10 bg-[#ffd33d] rounded-xl border-2 border-black opacity-15 rotate-12"
+        style={retro.btnShadow}
+      />
+      <View
+        className="absolute bottom-48 right-12 w-12 h-12 bg-[#10b981] rounded-lg border-2 border-black opacity-15"
+        style={retro.btnShadow}
+      />
+
+      <StatusBar style="dark" />
 
       {/* HEADER */}
       <View className="px-6 mt-4 flex-row items-center justify-between">
@@ -74,25 +114,26 @@ export default function SavingSetup() {
           onPress={() =>
             router.canGoBack() ? router.back() : router.replace("/(onboarding)")
           }
-          className="p-2 bg-white/10 rounded-full"
+          className="p-2 bg-[#ffd33d] rounded-lg border-2 border-black"
+          style={retro.btnShadow}
         >
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
 
         {/* Progress Bar: Step 4 */}
         <View className="flex-row space-x-2">
-          <View className="w-8 h-1 bg-teal-500 rounded-full" />
-          <View className="w-8 h-1 bg-teal-500 rounded-full" />
-          <View className="w-8 h-1 bg-teal-500 rounded-full" />
-          <View className="w-8 h-1 bg-teal-500 rounded-full" />
+          <View className="w-8 h-1 bg-[#2EC4B6] rounded-lg border border-black" />
+          <View className="w-8 h-1 bg-[#2EC4B6] rounded-lg border border-black" />
+          <View className="w-8 h-1 bg-[#2EC4B6] rounded-lg border border-black" />
+          <View className="w-8 h-1 bg-[#2EC4B6] rounded-lg border border-black" />
         </View>
       </View>
 
       <View className="px-6 mt-6">
-        <Text className="text-white text-3xl font-rubik-bold">
+        <Text className="text-black text-3xl font-rubik-bold uppercase tracking-tight">
           Savings Goals
         </Text>
-        <Text className="text-gray-400 text-base mt-2">
+        <Text className="text-gray-600 text-base mt-2">
           What are you saving for? (e.g. New Car, Holiday)
         </Text>
       </View>
@@ -101,20 +142,23 @@ export default function SavingSetup() {
       <ScrollView className="flex-1 px-6 mt-6">
         {savings.length === 0 ? (
           <View className="items-center justify-center py-10 opacity-50">
-            <Ionicons name="wallet-outline" size={64} color="gray" />
-            <Text className="text-gray-500 mt-4">No goals added yet.</Text>
+            <Ionicons name="wallet-outline" size={64} color="#999" />
+            <Text className="text-gray-500 mt-4 font-rubik-medium">
+              No goals added yet.
+            </Text>
           </View>
         ) : (
           savings.map((item) => (
             <View
               key={item.id}
-              className="bg-[#1a1a1a] p-4 rounded-xl mb-3 flex-row justify-between items-center border border-white/5"
+              className="bg-white p-4 rounded-xl mb-3 flex-row justify-between items-center border-2 border-black"
+              style={retro.shadow}
             >
               <View>
-                <Text className="text-white font-rubik-medium text-lg">
+                <Text className="text-black font-rubik-bold text-lg uppercase tracking-tight">
                   {item.name}
                 </Text>
-                <Text className="text-teal-500 text-xs font-rubik mt-1">
+                <Text className="text-[#A855F7] text-xs font-rubik-bold mt-1 uppercase tracking-widest">
                   {/* Format it nicely for display */}
                   Target: ${Number(item.targetAmount).toLocaleString()}
                 </Text>
@@ -131,10 +175,13 @@ export default function SavingSetup() {
         {/* Add Button */}
         <TouchableOpacity
           onPress={() => setModalVisible(true)}
-          className="flex-row items-center justify-center bg-white/5 border border-white/10 p-4 rounded-xl border-dashed mt-2 mb-10"
+          className="flex-row items-center justify-center bg-white border-2 border-black p-4 rounded-xl border-dashed mt-2 mb-10"
+          style={retro.btnShadow}
         >
-          <Ionicons name="add" size={24} color="white" />
-          <Text className="text-white font-rubik-medium ml-2">Add a Goal</Text>
+          <Ionicons name="add" size={24} color="black" />
+          <Text className="text-black font-rubik-bold ml-2 uppercase tracking-tight">
+            Add a Goal
+          </Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -142,9 +189,10 @@ export default function SavingSetup() {
       <View className="px-6 mb-4">
         <TouchableOpacity
           onPress={() => router.push("/(onboarding)/finishing-up")}
-          className="w-full py-5 rounded-full items-center bg-teal-500"
+          className="w-full py-5 rounded-xl items-center bg-[#2EC4B6] border-2 border-black"
+          style={retro.btnShadow}
         >
-          <Text className="text-white font-rubik-bold text-lg">
+          <Text className="text-white font-rubik-bold text-lg uppercase tracking-tight">
             {savings.length === 0 ? "Skip for Now" : "Finish Setup"}
           </Text>
         </TouchableOpacity>
@@ -154,21 +202,22 @@ export default function SavingSetup() {
       <Modal visible={isModalVisible} animationType="slide" transparent>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View className="flex-1 bg-black/80 justify-end">
-            <View className="bg-[#1a1a1a] rounded-t-3xl p-6 border-t border-white/10 h-[60%]">
+            <View className="bg-[#FFFDF5] rounded-t-3xl p-6 border-t-2 border-black h-[60%]">
               <View className="flex-row justify-between items-center mb-6">
-                <Text className="text-white text-xl font-rubik-bold">
+                <Text className="text-black text-xl font-rubik-bold uppercase tracking-tight">
                   New Goal
                 </Text>
                 <TouchableOpacity onPress={() => setModalVisible(false)}>
-                  <Ionicons name="close" size={24} color="gray" />
+                  <Ionicons name="close" size={24} color="black" />
                 </TouchableOpacity>
               </View>
 
               {/* Form Fields */}
               <TextInput
                 placeholder="Goal Name (e.g. Emergency Fund)"
-                placeholderTextColor="#666"
-                className="bg-black/50 text-white p-4 rounded-xl mb-4 text-lg font-rubik border border-white/5"
+                placeholderTextColor="#999"
+                className="bg-white text-black p-4 rounded-xl mb-4 text-lg font-rubik-medium border-2 border-black"
+                style={retro.shadow}
                 value={name}
                 onChangeText={setName}
                 autoFocus
@@ -176,9 +225,10 @@ export default function SavingSetup() {
 
               <TextInput
                 placeholder="Target Amount ($)"
-                placeholderTextColor="#666"
+                placeholderTextColor="#999"
                 keyboardType="numeric"
-                className="bg-black/50 text-white p-4 rounded-xl mb-4 text-lg font-rubik border border-white/5"
+                className="bg-white text-black p-4 rounded-xl mb-4 text-lg font-rubik-medium border-2 border-black"
+                style={retro.shadow}
                 value={target}
                 // Uses the smart handler
                 onChangeText={handleTargetChange}
@@ -188,11 +238,12 @@ export default function SavingSetup() {
 
               <TouchableOpacity
                 onPress={handleAddSaving}
-                className={`w-full py-4 rounded-full items-center mb-6 ${name && target ? "bg-teal-500" : "bg-gray-800"}`}
+                className={`w-full py-4 rounded-xl items-center mb-6 border-2 border-black ${name && target ? "bg-[#A855F7]" : "bg-gray-300"}`}
+                style={name && target ? retro.btnShadow : undefined}
                 disabled={!name || !target}
               >
                 <Text
-                  className={`font-rubik-bold text-lg ${name && target ? "text-white" : "text-gray-500"}`}
+                  className={`font-rubik-bold text-lg uppercase tracking-tight ${name && target ? "text-white" : "text-gray-500"}`}
                 >
                   Save Goal
                 </Text>

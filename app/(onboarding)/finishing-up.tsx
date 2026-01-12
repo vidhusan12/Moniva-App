@@ -4,8 +4,8 @@ import { doc, setDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth, db } from "../../config/firebase"; // Ensure db is exported from config
 import { useUser } from "../../app/context/UserContext";
+import { auth, db } from "../../config/firebase"; // Ensure db is exported from config
 import { FinanceService } from "../../services/financeService";
 
 export default function FinishingUp() {
@@ -103,16 +103,16 @@ export default function FinishingUp() {
   }, []);
 
   return (
-    <SafeAreaView className="flex-1 bg-black justify-center items-center px-6">
-      <StatusBar style="light" />
+    <SafeAreaView className="flex-1 bg-[#FFFDF5] justify-center items-center px-6">
+      <StatusBar style="dark" />
 
-      <ActivityIndicator size="large" color="#2dd4bf" className="mb-8" />
+      <ActivityIndicator size="large" color="#2EC4B6" className="mb-8" />
 
-      <Text className="text-white text-2xl font-rubik-bold text-center mb-2">
+      <Text className="text-black text-2xl font-rubik-bold text-center mb-2 uppercase tracking-tight">
         Setting up Moniva
       </Text>
 
-      <Text className="text-gray-400 font-rubik text-base text-center">
+      <Text className="text-gray-600 font-rubik-medium text-base text-center">
         {status}
       </Text>
     </SafeAreaView>

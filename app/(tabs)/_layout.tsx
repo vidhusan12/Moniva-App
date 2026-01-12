@@ -8,111 +8,79 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#2dd4bf",
-        tabBarInactiveTintColor: "#666666",
         headerShadowVisible: false,
-        
-        // --- TAB BAR CONTAINER STYLE ---
+        tabBarShowLabel: false,
+
         tabBarStyle: {
-          backgroundColor: "#0a0a0a",
-          borderTopWidth: 0, // Removed border for a cleaner floating look
-          
-          // Increased height to fix your "too close to bottom" issue
-          height: Platform.OS === "ios" ? 100 : 80,
-          
-          // Added more padding to push icons up from the bottom edge
-          paddingBottom: Platform.OS === "ios" ? 40 : 20,
+          backgroundColor: "#FFFFFF",
+          borderTopWidth: 2, // Cleaner 2px border
+          borderTopColor: "#000000",
+          height: Platform.OS === "ios" ? 90 : 70,
           paddingTop: 10,
-          
-          elevation: 0, // No shadow on Android
-          position: "absolute", // Makes background transparent at corners if needed
-          bottom: 0,
-        },
-        
-        tabBarLabelStyle: {
-          fontFamily: "Rubik-Medium",
-          fontSize: 10,
+          elevation: 0,
         },
       }}
     >
-      {/* 1. HOME (Left Small) */}
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "home" : "home-outline"} color={color} size={24} />
-          ),
-        }}
-      />
-
-      {/* 2. INCOME (Left Small) */}
-      <Tabs.Screen
-        name="income"
-        options={{
-          title: "Income",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "trending-up" : "trending-up-outline"} color={color} size={24} />
-          ),
-        }}
-      />
-
-      {/* 3. TRANSACTION (The BIG Center Button) */}
-      <Tabs.Screen
-        name="transaction"
-        options={{
-          title: "", // No text label for the big button
           tabBarIcon: ({ focused }) => (
-            <View
-              style={{
-                top: -20, // Moves it UP out of the bar
-                width: 60,
-                height: 60,
-                borderRadius: 30, // Makes it a perfect circle
-                backgroundColor: "#2dd4bf", // Teal background
-                justifyContent: "center",
-                alignItems: "center",
-                // Shadow for 3D effect
-                shadowColor: "#2dd4bf",
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.3,
-                shadowRadius: 10,
-                elevation: 5,
-              }}
-            >
-              <Ionicons 
-                name="swap-horizontal" 
-                color="white" // White icon on Teal background
-                size={30} 
-              />
+            <View className={`items-center justify-center w-12 h-10 rounded-xl ${focused ? "bg-black" : "transparent"}`}>
+               <Ionicons name={focused ? "home" : "home-outline"} color={focused ? "#A3E635" : "black"} size={24} />
             </View>
           ),
         }}
       />
 
-      {/* 4. BILLS (Right Small) */}
+      <Tabs.Screen
+        name="income"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <View className={`items-center justify-center w-12 h-10 rounded-xl ${focused ? "bg-black" : "transparent"}`}>
+               <Ionicons name={focused ? "trending-up" : "trending-up-outline"} color={focused ? "#A3E635" : "black"} size={24} />
+            </View>
+          ),
+        }}
+      />
+
+      {/* BIG FLOATING ADD BUTTON */}
+      <Tabs.Screen
+        name="transaction"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <View 
+                className="w-14 h-14 bg-[#A3E635] rounded-full border-2 border-black items-center justify-center -mt-8"
+                style={{ shadowColor: "#000", shadowOffset: { width: 3, height: 3 }, shadowOpacity: 1, shadowRadius: 0 }}
+            >
+                <Ionicons name="add" color="black" size={32} />
+            </View>
+          ),
+        }}
+      />
+
       <Tabs.Screen
         name="bill"
         options={{
-          title: "Bills",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "receipt" : "receipt-outline"} color={color} size={24} />
+          tabBarIcon: ({ focused }) => (
+            <View className={`items-center justify-center w-12 h-10 rounded-xl ${focused ? "bg-black" : "transparent"}`}>
+               <Ionicons name={focused ? "receipt" : "receipt-outline"} color={focused ? "#A3E635" : "black"} size={24} />
+            </View>
           ),
         }}
       />
 
-      {/* 5. MORE (Right Small) */}
       <Tabs.Screen
         name="more"
         options={{
-          title: "More",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "grid" : "grid-outline"} color={color} size={24} />
+          tabBarIcon: ({ focused }) => (
+            <View className={`items-center justify-center w-12 h-10 rounded-xl ${focused ? "bg-black" : "transparent"}`}>
+               <Ionicons name={focused ? "grid" : "grid-outline"} color={focused ? "#A3E635" : "black"} size={24} />
+            </View>
           ),
         }}
       />
 
-      {/* --- HIDDEN ROUTES --- */}
+      {/* Hidden Routes */}
       <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="savings" options={{ href: null }} />
       <Tabs.Screen name="charts" options={{ href: null }} />

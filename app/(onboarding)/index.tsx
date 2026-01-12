@@ -1,23 +1,41 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useRef } from "react";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+const retro = {
+  bg: "bg-[#FFFDF5]",
+  btnShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+  },
+  colors: {
+    yellow: "#ffd33d",
+    teal: "#2EC4B6",
+    red: "#ef233c",
+    green: "#10b981",
+    orange: "#fb923c",
+    blue: "#3b82f6",
+    purple: "#a855f7",
+  },
+};
+
 export default function WelcomeScreen() {
-  const opacityAnim = useRef(new Animated.Value(0.5)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(opacityAnim, {
-          toValue: 1,
+        Animated.timing(scaleAnim, {
+          toValue: 1.05,
           duration: 2000,
           useNativeDriver: true,
         }),
-        Animated.timing(opacityAnim, {
-          toValue: 0.5,
+        Animated.timing(scaleAnim, {
+          toValue: 1,
           duration: 2000,
           useNativeDriver: true,
         }),
@@ -26,65 +44,80 @@ export default function WelcomeScreen() {
   }, []);
 
   return (
-    <View className="flex-1 bg-black">
-      <StatusBar style="light" />
-
-      {/* Background & Atmosphere */}
-      <LinearGradient
-        colors={["#000000", "#111827", "#000000"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        className="absolute w-full h-full"
+    <View className={`flex-1 ${retro.bg}`}>
+      {/* Decorative background shapes */}
+      <View
+        className="absolute top-32 right-8 w-16 h-16 bg-[#ffd33d] rounded-full border-2 border-black opacity-20"
+        style={retro.btnShadow}
       />
-      <View className="absolute -top-20 -right-20 w-80 h-80 bg-teal-500/10 rounded-full blur-[80px]" />
-      <View className="absolute -bottom-20 -left-20 w-80 h-80 bg-blue-600/10 rounded-full blur-[80px]" />
+      <View
+        className="absolute top-64 left-8 w-12 h-12 bg-[#10b981] rounded-xl border-2 border-black opacity-20 rotate-12"
+        style={retro.btnShadow}
+      />
+      <View
+        className="absolute bottom-48 right-12 w-14 h-14 bg-[#a855f7] rounded-lg border-2 border-black opacity-20"
+        style={retro.btnShadow}
+      />
+
+      <StatusBar style="dark" />
 
       <SafeAreaView className="flex-1 justify-between px-6 pb-12">
-        {/* TOP: Ultra-Minimal Header */}
-        {/* Changed justify-between to justify-end since we removed the left title */}
+        {/* TOP: Sign In Button */}
         <View className="mt-8 flex-row justify-end items-center">
           <TouchableOpacity
             onPress={() => router.push("/login")}
-            className="bg-white/5 px-4 py-2 rounded-full border border-white/10"
+            className="bg-[#3b82f6] px-6 py-3 rounded-xl border-2 border-black"
+            style={retro.btnShadow}
           >
-            <Text className="text-white font-rubik-medium text-xs tracking-widest uppercase">
+            <Text className="text-white font-rubik-bold text-xs tracking-widest uppercase">
               Sign In
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* CENTER: The Stacked Logo */}
+        {/* CENTER: Retro Logo Stack */}
         <View className="flex-1 justify-center items-center">
-          {/* 1. MON (The Base) */}
-          <Text className="text-[120px] font-rubik-bold text-[#1f2937] leading-none text-center tracking-tighter">
+          {/* MON (Base Text) */}
+          <Text className="text-[120px] font-rubik-bold text-gray-300 leading-none text-center tracking-tighter">
             MON
           </Text>
 
-          {/* 2. IVA (The Light) */}
-          {/* Added -mt-4 to pull it up visually closer to MON */}
+          {/* IVA (Highlighted with Animation) */}
           <TouchableOpacity
             onPress={() => router.push("/(auth)/signup")}
             activeOpacity={0.7}
             className="-mt-4"
           >
-            <Animated.View style={{ opacity: opacityAnim }}>
-              <Text className="text-[120px] font-rubik-bold text-teal-500 leading-none text-center shadow-lg shadow-teal-500/50 tracking-tighter">
+            <Animated.View
+              style={{
+                transform: [{ scale: scaleAnim }],
+              }}
+              className="bg-[#10b981] px-8 py-2 rounded-2xl border-4 border-black"
+            >
+              <Text
+                className="text-[120px] font-rubik-bold text-white leading-none text-center tracking-tighter"
+                style={{
+                  textShadowColor: "#000",
+                  textShadowOffset: { width: 4, height: 4 },
+                  textShadowRadius: 0,
+                }}
+              >
                 IVA
               </Text>
             </Animated.View>
           </TouchableOpacity>
 
-          <Text className="text-gray-500 mt-10 text-center font-rubik-medium tracking-[6px] text-xs uppercase opacity-60">
-            Tap the light to enter
+          <Text className="text-black mt-12 text-center font-rubik-bold tracking-[6px] text-xs uppercase">
+            Tap to begin
           </Text>
         </View>
 
         {/* BOTTOM: Value Prop */}
         <View>
-          <Text className="text-white text-3xl font-rubik-light text-center leading-tight">
+          <Text className="text-black text-4xl font-rubik-bold text-center leading-tight uppercase tracking-tight mb-2">
             See it all.
           </Text>
-          <Text className="text-gray-400 text-3xl font-rubik-medium text-center leading-tight">
+          <Text className="text-gray-500 text-2xl font-rubik-bold text-center leading-tight uppercase">
             Save it all.
           </Text>
         </View>

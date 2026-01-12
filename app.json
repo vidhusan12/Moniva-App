@@ -2,15 +2,21 @@
   "expo": {
     "name": "Moniva-App",
     "slug": "Moniva-App",
+    "owner": "vidhusan",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "monivaapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vidhusan.MonivaApp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.vidhusan.MonivaApp",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
       },
@@ -41,6 +47,18 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "06bdba63-a1ae-4887-a5cd-f88c4f435d2a"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/06bdba63-a1ae-4887-a5cd-f88c4f435d2a"
     }
   }
 }

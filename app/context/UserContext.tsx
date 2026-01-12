@@ -108,3 +108,8 @@ export function useUser() {
   }
   return context;
 }
+
+// Default export to satisfy Expo Router requirement
+export default function UserContextComponent() {
+  return null;
+}

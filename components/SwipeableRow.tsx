@@ -1,23 +1,26 @@
+import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { PropsWithChildren } from "react";
-import {
-  Dimensions,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Dimensions, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 // Distance (in pixels) the user must swipe to confirm the action
-const SWIPE_THRESHOLD = 150;
+const SWIPE_THRESHOLD = 100; // Reduced from 150 for easier triggering
+
+// Spring configuration for smoother animations
+const SPRING_CONFIG = {
+  damping: 25,
+  stiffness: 300,
+  mass: 0.5,
+};
 
 interface SwipeableRowProps extends PropsWithChildren {
   onSwipeLeft: () => void; // Delete action (swipe left to expose right side)
@@ -30,136 +33,89 @@ const SwipeableRow: React.FC<SwipeableRowProps> = ({
   onSwipeRight,
 }) => {
   const translateX = useSharedValue(0);
-  const leftOpacity = useSharedValue(0);
-  const rightOpacity = useSharedValue(0);
+  const leftScale = useSharedValue(0);
+  const rightScale = useSharedValue(0);
 
   // Gesture Handler Logic
   const panGesture = Gesture.Pan()
-    .activeOffsetX([-10, 10]) // Only activate after 10px horizontal movement
-    .failOffsetY([-10, 10]) // Cancel if vertical movement exceeds 10px (allows scrolling)
-    .onStart(() => {
-      // Gesture started
-    })
+    .activeOffsetX([-5, 5])
+    .failOffsetY([-15, 15])
     .onUpdate((event) => {
-      // Only update if horizontal movement is dominant
-      const isHorizontalSwipe =
-        Math.abs(event.translationX) > Math.abs(event.translationY);
+      const resistance = 0.6;
+      const translation = event.translationX * resistance;
 
-      if (isHorizontalSwipe) {
-        // Clamp between -50% and 50% of screen width to prevent over-swiping
-        translateX.value = Math.max(
-          -SCREEN_WIDTH * 0.5,
-          Math.min(SCREEN_WIDTH * 0.5, event.translationX)
-        );
+      // Clamp translation
+      translateX.value = Math.max(
+        -SCREEN_WIDTH * 0.35,
+        Math.min(SCREEN_WIDTH * 0.35, translation)
+      );
 
-        // Update opacity based on swipe distance for visual feedback
-        if (event.translationX > 0) {
-          leftOpacity.value = Math.min(1, event.translationX / SWIPE_THRESHOLD);
-          rightOpacity.value = 0;
-        } else {
-          rightOpacity.value = Math.min(
-            1,
-            Math.abs(event.translationX) / SWIPE_THRESHOLD
-          );
-          leftOpacity.value = 0;
-        }
+      // Scale animations for buttons (they grow as you swipe)
+      if (event.translationX > 0) {
+        leftScale.value = Math.min(1, Math.abs(event.translationX) / 80);
+        rightScale.value = 0;
+      } else {
+        rightScale.value = Math.min(1, Math.abs(event.translationX) / 80);
+        leftScale.value = 0;
       }
     })
     .onEnd((event) => {
-      // Check both distance AND velocity for better detection
       const isSwipeLeft =
-        event.translationX < -SWIPE_THRESHOLD || event.velocityX < -500;
+        event.translationX < -SWIPE_THRESHOLD || event.velocityX < -800;
       const isSwipeRight =
-        event.translationX > SWIPE_THRESHOLD || event.velocityX > 500;
+        event.translationX > SWIPE_THRESHOLD || event.velocityX > 800;
 
       if (isSwipeRight) {
-        // Trigger haptic feedback
-        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-        // Trigger Edit action, then spring back
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
         runOnJS(onSwipeRight)();
-        translateX.value = withSpring(0, {
-          damping: 15,
-          stiffness: 150,
-        });
-        leftOpacity.value = withSpring(0);
+        translateX.value = withSpring(0, SPRING_CONFIG);
+        leftScale.value = withTiming(0, { duration: 200 });
       } else if (isSwipeLeft) {
-        // Trigger haptic feedback
-        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-        // Trigger Delete action, then spring back
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
         runOnJS(onSwipeLeft)();
-        translateX.value = withSpring(0, {
-          damping: 15,
-          stiffness: 150,
-        });
-        rightOpacity.value = withSpring(0);
+        translateX.value = withSpring(0, SPRING_CONFIG);
+        rightScale.value = withTiming(0, { duration: 200 });
       } else {
-        // Snap back smoothly if swipe wasn't strong enough
-        translateX.value = withSpring(0, {
-          damping: 20,
-          stiffness: 200,
-        });
-        leftOpacity.value = withSpring(0);
-        rightOpacity.value = withSpring(0);
+        translateX.value = withSpring(0, SPRING_CONFIG);
+        leftScale.value = withTiming(0, { duration: 150 });
+        rightScale.value = withTiming(0, { duration: 150 });
       }
     });
 
   // Animated Styles
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: translateX.value }],
-    };
-  });
-
-  const leftActionStyle = useAnimatedStyle(() => ({
-    opacity: leftOpacity.value,
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
   }));
 
-  const rightActionStyle = useAnimatedStyle(() => ({
-    opacity: rightOpacity.value,
+  const leftButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: leftScale.value }],
+    opacity: leftScale.value,
+  }));
+
+  const rightButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: rightScale.value }],
+    opacity: rightScale.value,
   }));
 
   return (
     <View style={styles.container}>
-      {/* Background Actions - left to edit - blue */}
-      <Animated.View
-        style={[
-          styles.absoluteFill,
-          styles.leftActionContainer,
-          leftActionStyle,
-        ]}
-      >
-        <TouchableOpacity
-          className="flex-1 bg-blue-600 justify-center items-start pl-6"
-          onPress={() => onSwipeRight()}
-          activeOpacity={0.8}
-        >
-          <Text className="text-white font-rubik-bold">Edit</Text>
-        </TouchableOpacity>
+      {/* Edit Button (Left) */}
+      <Animated.View style={[styles.leftButton, leftButtonStyle]}>
+        <View className="bg-blue-500 w-16 h-16 rounded-2xl items-center justify-center shadow-lg">
+          <Ionicons name="create-outline" size={24} color="white" />
+        </View>
       </Animated.View>
 
-      {/* Background Actions - right to delete - red */}
-      <Animated.View
-        style={[
-          styles.absoluteFill,
-          styles.rightActionContainer,
-          rightActionStyle,
-        ]}
-      >
-        <TouchableOpacity
-          className="flex-1 bg-red-600 justify-center items-end pr-6"
-          onPress={() => onSwipeLeft()}
-          activeOpacity={0.8}
-        >
-          <Text className="text-white font-rubik-bold">Delete</Text>
-        </TouchableOpacity>
+      {/* Delete Button (Right) */}
+      <Animated.View style={[styles.rightButton, rightButtonStyle]}>
+        <View className="bg-red-500 w-16 h-16 rounded-2xl items-center justify-center shadow-lg">
+          <Ionicons name="trash-outline" size={24} color="white" />
+        </View>
       </Animated.View>
 
       {/* Foreground content (animated) */}
       <GestureDetector gesture={panGesture}>
-        <Animated.View
-          style={animatedStyle}
-          className="w-full bg-[#0a0a0a] z-10"
-        >
+        <Animated.View style={animatedStyle} className="w-full">
           {children}
         </Animated.View>
       </GestureDetector>
@@ -171,17 +127,23 @@ const SwipeableRow: React.FC<SwipeableRowProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: "100%",
-    // The container holds the background and foreground
+    position: "relative",
   },
-  absoluteFill: {
-    ...StyleSheet.absoluteFillObject,
-    // Ensures background views cover the item space
+  leftButton: {
+    position: "absolute",
+    left: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    zIndex: 0,
   },
-  leftActionContainer: {
-    // Defines where the left action background lives
-  },
-  rightActionContainer: {
-    // Defines where the right action background lives
+  rightButton: {
+    position: "absolute",
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    zIndex: 0,
   },
 });
 

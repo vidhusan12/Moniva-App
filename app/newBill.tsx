@@ -12,6 +12,7 @@ import {
   Alert,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   Text,
@@ -40,6 +41,32 @@ const BillDetails = () => {
     "Annual",
   ];
 
+  const retro = {
+    bg: "bg-[#FFFDF5]",
+    card: "bg-white rounded-xl border-2 border-black",
+    shadow: {
+      shadowColor: "#000",
+      shadowOffset: { width: 3, height: 3 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+    },
+    btnShadow: {
+      shadowColor: "#000",
+      shadowOffset: { width: 2, height: 2 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+    },
+    colors: {
+      yellow: "#ffd33d",
+      teal: "#2EC4B6",
+      red: "#ef233c",
+      green: "#10b981",
+      orange: "#fb923c",
+      blue: "#3b82f6",
+      purple: "#a855f7",
+    },
+  };
+
   const optimisticallyAddBill = useFinanceStore(
     (state) => state.optimisticallyAddBill
   );
@@ -59,7 +86,7 @@ const BillDetails = () => {
           billId
         );
         if (bill) {
-          setAmount(bill.amount.toString());
+          setAmount(bill.amount.toFixed(2));
           setDescription(bill.description);
           setFrequency(bill.frequency);
           if (bill.startDate) setNextPayDate(new Date(bill.startDate));
@@ -119,13 +146,28 @@ const BillDetails = () => {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <SafeAreaView className="flex-1 bg-black justify-between px-6">
+      <SafeAreaView className={`flex-1 ${retro.bg} justify-between px-6`}>
+        {/* Decorative background shapes */}
+        <View
+          className="absolute top-24 right-8 w-12 h-12 bg-[#ef233c] rounded-full border-2 border-black opacity-15"
+          style={retro.btnShadow}
+        />
+        <View
+          className="absolute top-48 left-8 w-8 h-8 bg-[#ffd33d] rounded-xl border-2 border-black opacity-15 rotate-12"
+          style={retro.btnShadow}
+        />
+        <View
+          className="absolute bottom-32 right-12 w-10 h-10 bg-[#fb923c] rounded-lg border-2 border-black opacity-15"
+          style={retro.btnShadow}
+        />
+
         <Stack.Screen options={{ headerShown: false }} />
 
         <View className="mt-4 flex-row justify-between items-center">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="p-2 bg-white/10 rounded-full"
+            className="p-2 bg-[#ef233c] border-2 border-black rounded-full"
+            style={retro.btnShadow}
           >
             <Ionicons name="close" size={24} color="white" />
           </TouchableOpacity>
@@ -139,47 +181,57 @@ const BillDetails = () => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 100 }}
           >
-            <Text className="text-white text-3xl font-rubik-bold mt-4 text-center">
-              {billId ? "Edit Bill" : "New Bill"}
+            <Text className="text-black text-3xl font-rubik-bold mt-4 text-center tracking-tight">
+              {billId ? "EDIT BILL" : "NEW BILL"}
             </Text>
-            <Text className="text-gray-500 text-center font-rubik mb-10 mt-1">
+            <Text className="text-gray-500 text-center font-rubik-bold mb-10 mt-1 uppercase tracking-wide text-xs">
               Add a recurring expense
             </Text>
 
-            <View className="bg-[#1a1a1a] rounded-2xl px-5 py-4 mb-4 border border-white/5">
-              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1">
+            <View
+              className={`${retro.card} px-5 py-4 mb-4`}
+              style={retro.shadow}
+            >
+              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-2 font-rubik-bold">
                 Description
               </Text>
               <TextInput
-                className="text-white text-xl font-rubik-medium"
+                className="text-black text-xl font-rubik-bold py-1"
                 placeholder="e.g. Netflix"
-                placeholderTextColor="#444"
+                placeholderTextColor="#999"
                 value={description}
                 onChangeText={setDescription}
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="done"
               />
             </View>
 
-            <View className="bg-[#1a1a1a] rounded-2xl px-5 py-4 mb-4 border border-white/5">
-              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1">
+            <View
+              className={`${retro.card} px-5 py-4 mb-4`}
+              style={retro.shadow}
+            >
+              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-2 font-rubik-bold">
                 Amount
               </Text>
               <View className="flex-row items-center">
-                <Text className="text-teal-500 text-xl font-rubik-bold mr-1">
+                <Text className="text-[#FF6B6B] text-xl font-rubik-bold mr-2">
                   $
                 </Text>
                 <TextInput
-                  className="text-white text-xl font-rubik-medium flex-1"
+                  className="text-black text-xl font-rubik-bold flex-1 py-1"
                   placeholder="0.00"
-                  placeholderTextColor="#444"
-                  keyboardType="numeric"
+                  placeholderTextColor="#999"
+                  keyboardType="decimal-pad"
                   value={amount}
                   onChangeText={handleAmountChange}
+                  returnKeyType="done"
                 />
               </View>
             </View>
 
             <View className="mb-4">
-              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-2 ml-2">
+              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-2 ml-2 font-rubik-bold">
                 Frequency
               </Text>
               <View className="flex-row flex-wrap gap-2">
@@ -187,14 +239,13 @@ const BillDetails = () => {
                   <TouchableOpacity
                     key={option}
                     onPress={() => setFrequency(option)}
-                    className={`px-4 py-3 rounded-xl border ${
-                      frequency === option
-                        ? "bg-teal-500/20 border-teal-500"
-                        : "bg-[#1a1a1a] border-white/5"
+                    className={`px-4 py-3 rounded-xl border-2 border-black ${
+                      frequency === option ? "bg-[#A3E635]" : "bg-white"
                     }`}
+                    style={frequency === option ? retro.btnShadow : undefined}
                   >
                     <Text
-                      className={`font-rubik-medium text-sm ${frequency === option ? "text-teal-400" : "text-gray-400"}`}
+                      className={`font-rubik-bold text-sm uppercase ${frequency === option ? "text-black" : "text-gray-600"}`}
                     >
                       {option}
                     </Text>
@@ -203,16 +254,19 @@ const BillDetails = () => {
               </View>
             </View>
 
-            <View className="bg-[#1a1a1a] rounded-2xl px-5 py-4 mb-4 border border-white/5">
+            <View
+              className={`${retro.card} px-5 py-4 mb-4`}
+              style={retro.shadow}
+            >
               <TouchableOpacity
-                onPress={() => setShowDatePicker(!showDatePicker)}
+                onPress={() => setShowDatePicker(true)}
                 className="flex-row justify-between items-center"
               >
                 <View>
-                  <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1">
+                  <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1 font-rubik-bold">
                     Due Date
                   </Text>
-                  <Text className="text-white text-xl font-rubik-medium">
+                  <Text className="text-black text-xl font-rubik-bold">
                     {nextPayDate.toLocaleDateString("en-GB", {
                       weekday: "short",
                       day: "numeric",
@@ -220,34 +274,68 @@ const BillDetails = () => {
                     })}
                   </Text>
                 </View>
-                <Ionicons name="calendar-outline" size={24} color="#666" />
+                <Ionicons name="calendar-outline" size={24} color="black" />
               </TouchableOpacity>
-              {showDatePicker && (
-                <View className="mt-4">
-                  <DateTimePicker
-                    value={nextPayDate}
-                    mode="date"
-                    display={Platform.OS === "ios" ? "spinner" : "default"}
-                    onChange={onChangeDate}
-                    themeVariant="dark"
-                    textColor="white"
-                  />
-                </View>
-              )}
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
 
+        {/* iOS Date Picker Modal */}
+        {showDatePicker && Platform.OS === "ios" && (
+          <Modal transparent animationType="fade">
+            <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+              <View className="flex-1 bg-black/50 justify-center items-center">
+                <TouchableWithoutFeedback>
+                  <View
+                    className={`mx-6 p-4 ${retro.card}`}
+                    style={retro.shadow}
+                  >
+                    <Text className="text-black font-rubik-bold text-center mb-4 uppercase tracking-tight">
+                      Select Due Date
+                    </Text>
+                    <DateTimePicker
+                      value={nextPayDate}
+                      mode="date"
+                      display="inline"
+                      onChange={onChangeDate}
+                      themeVariant="light"
+                      accentColor="#FF6B6B"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      className="mt-4 bg-[#A3E635] py-3 rounded-xl items-center border-2 border-black"
+                      style={retro.btnShadow}
+                    >
+                      <Text className="text-black font-rubik-bold uppercase">
+                        Done
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+        )}
+        {showDatePicker && Platform.OS === "android" && (
+          <DateTimePicker
+            value={nextPayDate}
+            mode="date"
+            display="default"
+            onChange={onChangeDate}
+          />
+        )}
+
         <View className="mb-4">
           <TouchableOpacity
             onPress={handleSubmit}
-            className={`w-full py-5 rounded-full items-center ${
-              amount && description ? "bg-teal-500" : "bg-gray-800"
+            className={`w-full py-5 rounded-full items-center border-2 border-black ${
+              amount && description ? "bg-[#FF6B6B]" : "bg-gray-300"
             }`}
+            style={amount && description ? retro.btnShadow : undefined}
             disabled={!amount || !description}
           >
             <Text
-              className={`font-rubik-bold text-lg ${amount && description ? "text-white" : "text-gray-500"}`}
+              className={`font-rubik-bold text-lg uppercase tracking-tight ${amount && description ? "text-white" : "text-gray-500"}`}
             >
               {billId ? "Update Bill" : "Add Bill"}
             </Text>

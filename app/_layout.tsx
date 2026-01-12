@@ -2,14 +2,13 @@
 import "react-native-gesture-handler";
 
 // The Root Layout
-import { auth, db } from "@/config/firebase"; // 👈 Added db
+import { auth } from "@/config/firebase"; // 👈 Added db
 import { useFinanceStore } from "@/store/financeStore";
 import { useFonts } from "expo-font";
-import { Stack, router, useSegments } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore"; // 👈 Added Firestore tools
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { UserProvider } from "./context/UserContext";
@@ -22,8 +21,6 @@ export default function RootLayout() {
   const loadInitialData = useFinanceStore((state) => state.loadInitialData);
   const [user, setUser] = useState<any>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const segments = useSegments();
-  const navigationAttempted = useRef(false);
 
   const [fontsLoaded] = useFonts({
     "Rubik-Regular": require("../assets/fonts/Rubik-Regular.ttf"),
@@ -34,15 +31,12 @@ export default function RootLayout() {
     "Rubik-Light": require("../assets/fonts/Rubik-Light.ttf"),
   });
 
-  // 1. Listen to auth changes - NO NAVIGATION HERE
+  // Listen to auth changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("Auth changed:", firebaseUser?.uid);
-
       if (firebaseUser) {
         await loadInitialData();
       }
-
       setUser(firebaseUser);
       setIsAuthReady(true);
     });
@@ -50,42 +44,7 @@ export default function RootLayout() {
     return unsubscribe;
   }, []);
 
-  // 2. NAVIGATION GUARD - only navigate ONCE on initial load
-  useEffect(() => {
-    if (!isAuthReady || !fontsLoaded || navigationAttempted.current) return;
-
-    const checkAndNavigate = async () => {
-      if (user) {
-        // User is logged in - check onboarding status
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          const isOnboardingComplete =
-            userDoc.exists() && userDoc.data()?.isOnboardingComplete;
-
-          if (isOnboardingComplete) {
-            console.log("Logged in + Onboarding done → Tabs");
-            router.replace("/(tabs)");
-          } else {
-            console.log("Logged in + No onboarding → Wallet Setup");
-            router.replace("/(onboarding)/wallet-setup");
-          }
-        } catch (error) {
-          console.error("Error checking onboarding:", error);
-          router.replace("/(tabs)");
-        }
-      } else {
-        // User logged out → Welcome Screen
-        console.log("No user → Welcome Screen");
-        router.replace("/(onboarding)");
-      }
-
-      navigationAttempted.current = true;
-    };
-
-    checkAndNavigate();
-  }, [user, isAuthReady, fontsLoaded]);
-
-  // 3. Hide Splash Screen
+  // Hide splash screen when ready
   useEffect(() => {
     if (fontsLoaded && isAuthReady) {
       SplashScreen.hideAsync();

@@ -44,6 +44,32 @@ const Savings = () => {
   const [amountToAdd, setAmountToAdd] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const retro = {
+    bg: "bg-[#FFFDF5]",
+    card: "bg-white rounded-xl border-2 border-black",
+    shadow: {
+      shadowColor: "#000",
+      shadowOffset: { width: 3, height: 3 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+    },
+    btnShadow: {
+      shadowColor: "#000",
+      shadowOffset: { width: 2, height: 2 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+    },
+    colors: {
+      yellow: "#ffd33d",
+      teal: "#2EC4B6",
+      red: "#ef233c",
+      green: "#10b981",
+      orange: "#fb923c",
+      blue: "#3b82f6",
+      purple: "#a855f7",
+    },
+  };
+
   // --- ACTIONS ---
 
   const handleDelete = async (id?: string) => {
@@ -133,7 +159,21 @@ const Savings = () => {
   }, [savings]);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0a0a0a]">
+    <SafeAreaView className={`flex-1 ${retro.bg}`}>
+      {/* Decorative background shapes */}
+      <View
+        className="absolute top-16 right-10 w-14 h-14 bg-[#a855f7] rounded-full border-2 border-black opacity-15"
+        style={retro.btnShadow}
+      />
+      <View
+        className="absolute top-40 left-8 w-10 h-10 bg-[#ffd33d] rounded-xl border-2 border-black opacity-15 rotate-12"
+        style={retro.btnShadow}
+      />
+      <View
+        className="absolute bottom-32 right-12 w-12 h-12 bg-[#10b981] rounded-lg border-2 border-black opacity-15"
+        style={retro.btnShadow}
+      />
+
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* HEADER */}
@@ -141,15 +181,19 @@ const Savings = () => {
         <View className="flex-row items-center gap-4">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="w-10 h-10 bg-white/5 rounded-full items-center justify-center border border-white/10"
+            className="w-10 h-10 bg-[#ffd33d] border-2 border-black rounded-full items-center justify-center"
+            style={retro.btnShadow}
           >
-            <Ionicons name="arrow-back" size={20} color="white" />
+            <Ionicons name="arrow-back" size={20} color="black" />
           </TouchableOpacity>
-          <Text className="text-3xl font-rubik-bold text-white">Savings</Text>
+          <Text className="text-3xl font-rubik-bold text-black uppercase tracking-tight">
+            Savings
+          </Text>
         </View>
         <TouchableOpacity
           onPress={() => router.push("/newSavings")}
-          className="w-12 h-12 bg-white/10 rounded-full items-center justify-center border border-white/5"
+          className="w-12 h-12 bg-[#A855F7] rounded-full items-center justify-center border-2 border-black"
+          style={retro.btnShadow}
         >
           <Ionicons name="add" size={28} color="white" />
         </TouchableOpacity>
@@ -158,25 +202,25 @@ const Savings = () => {
       <ScrollView className="px-6" showsVerticalScrollIndicator={false}>
         {/* STATS CARDS */}
         <View className="flex-row gap-3 mb-8">
-          <View className="flex-1 bg-[#1a1a1a] rounded-3xl p-4 border border-purple-500/20">
-            <View className="w-10 h-10 bg-purple-500/10 rounded-full items-center justify-center mb-3">
-              <Ionicons name="trophy" size={20} color="#a855f7" />
+          <View className={`flex-1 ${retro.card} p-4`} style={retro.btnShadow}>
+            <View className="w-10 h-10 bg-[#A855F7] border-2 border-black rounded-lg items-center justify-center mb-3">
+              <Ionicons name="trophy" size={20} color="white" />
             </View>
-            <Text className="font-rubik text-[10px] text-gray-500 uppercase tracking-widest mb-1">
+            <Text className="font-rubik-bold text-[10px] text-gray-500 uppercase tracking-widest mb-1">
               Total Saved
             </Text>
-            <Text className="font-rubik-bold text-2xl text-white">
+            <Text className="font-rubik-bold text-2xl text-black">
               ${totalSaved.toLocaleString()}
             </Text>
           </View>
-          <View className="flex-1 bg-[#1a1a1a] rounded-3xl p-4 border border-blue-500/20">
-            <View className="w-10 h-10 bg-blue-500/10 rounded-full items-center justify-center mb-3">
-              <Ionicons name="pie-chart" size={20} color="#3b82f6" />
+          <View className={`flex-1 ${retro.card} p-4`} style={retro.btnShadow}>
+            <View className="w-10 h-10 bg-[#3B82F6] border-2 border-black rounded-lg items-center justify-center mb-3">
+              <Ionicons name="pie-chart" size={20} color="white" />
             </View>
-            <Text className="font-rubik text-[10px] text-gray-500 uppercase tracking-widest mb-1">
+            <Text className="font-rubik-bold text-[10px] text-gray-500 uppercase tracking-widest mb-1">
               Progress
             </Text>
-            <Text className="font-rubik-bold text-2xl text-white">
+            <Text className="font-rubik-bold text-2xl text-black">
               {completionRate.toFixed(0)}%
             </Text>
           </View>
@@ -185,7 +229,7 @@ const Savings = () => {
         {/* ACTIVE GOALS */}
         <View className="pb-10">
           {activeGoals.length > 0 && (
-            <Text className="text-gray-500 font-rubik-medium mb-3 uppercase text-xs tracking-widest px-1">
+            <Text className="text-gray-500 font-rubik-bold mb-3 uppercase text-xs tracking-widest px-1">
               In Progress
             </Text>
           )}
@@ -213,44 +257,45 @@ const Savings = () => {
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => openDepositModal(item)}
-                  className="bg-[#1a1a1a] rounded-3xl p-5 mb-4 border border-white/5"
+                  className={`${retro.card} p-5 mb-4`}
+                  style={retro.shadow}
                 >
                   <View className="flex-row items-center gap-4 mb-4">
-                    <View className="w-12 h-12 bg-purple-500/10 rounded-full items-center justify-center border border-purple-500/20">
+                    <View className="w-12 h-12 bg-[#A855F7] border-2 border-black rounded-lg items-center justify-center">
                       <Ionicons
                         name={getGoalIcon(item.name)}
                         size={24}
-                        color="#a855f7"
+                        color="white"
                       />
                     </View>
 
                     <View className="flex-1">
                       <View className="flex-row justify-between items-center">
-                        <Text className="text-xl font-rubik-bold text-white">
+                        <Text className="text-xl font-rubik-bold text-black">
                           {item.name}
                         </Text>
-                        <Text className="text-purple-400 font-rubik-bold">
+                        <Text className="text-[#A855F7] font-rubik-bold">
                           {percent}%
                         </Text>
                       </View>
-                      <Text className="text-gray-400 text-xs font-rubik mt-1">
+                      <Text className="text-gray-500 text-xs font-rubik-bold mt-1 uppercase">
                         Tap to deposit funds
                       </Text>
                     </View>
                   </View>
 
-                  <View className="h-4 bg-black rounded-full overflow-hidden border border-white/5 relative">
+                  <View className="h-4 bg-gray-200 rounded-full overflow-hidden border-2 border-black relative">
                     <View
                       style={{ width: `${percent}%` }}
-                      className="h-full bg-purple-500 rounded-full"
+                      className="h-full bg-[#A855F7] rounded-full"
                     />
                   </View>
 
                   <View className="flex-row justify-between items-center mt-3">
-                    <Text className="text-gray-300 font-rubik-medium">
+                    <Text className="text-black font-rubik-bold">
                       ${item.currentAmount?.toLocaleString()}
                     </Text>
-                    <Text className="text-gray-500 font-rubik text-xs">
+                    <Text className="text-gray-500 font-rubik-bold text-xs uppercase">
                       Goal: ${item.targetAmount.toLocaleString()}
                     </Text>
                   </View>
@@ -263,13 +308,14 @@ const Savings = () => {
         {/* COMPLETED GOALS */}
         {completedGoals.length > 0 && (
           <View className="pb-20">
-            <Text className="text-gray-500 font-rubik-medium mb-3 uppercase text-xs tracking-widest px-1 mt-4">
+            <Text className="text-gray-500 font-rubik-bold mb-3 uppercase text-xs tracking-widest px-1 mt-4">
               Completed
             </Text>
             {completedGoals.map((item) => (
               <View
                 key={item.id}
-                className="bg-[#1a1a1a] rounded-3xl p-5 mb-4 border border-green-500/20 opacity-60"
+                className={`${retro.card} p-5 mb-4 border-[#A3E635] opacity-60`}
+                style={retro.shadow}
               >
                 <View className="flex-row items-center gap-4">
                   <Ionicons
@@ -278,10 +324,10 @@ const Savings = () => {
                     color="#4ade80"
                   />
                   <View>
-                    <Text className="text-lg font-rubik-medium text-white line-through decoration-white/50">
+                    <Text className="text-lg font-rubik-bold text-gray-600 line-through decoration-gray-600">
                       {item.name}
                     </Text>
-                    <Text className="text-green-500 text-xs font-rubik">
+                    <Text className="text-[#4ade80] text-xs font-rubik-bold uppercase">
                       Target Reached!
                     </Text>
                   </View>
@@ -307,26 +353,31 @@ const Savings = () => {
             <View className="absolute inset-0" />
           </TouchableWithoutFeedback>
 
-          <View className="bg-[#1a1a1a] w-[85%] rounded-[32px] p-6 border border-white/10 items-center">
-            <View className="w-16 h-16 bg-purple-500/20 rounded-full items-center justify-center mb-4">
-              <Ionicons name="wallet" size={30} color="#a855f7" />
+          <View
+            className={`w-[85%] ${retro.card} p-6 items-center`}
+            style={retro.shadow}
+          >
+            <View className="w-16 h-16 bg-[#A855F7] border-2 border-black rounded-full items-center justify-center mb-4">
+              <Ionicons name="wallet" size={30} color="white" />
             </View>
 
-            <Text className="text-white text-xl font-rubik-bold mb-1">
+            <Text className="text-black text-xl font-rubik-bold mb-1 uppercase tracking-tight">
               Add to {selectedGoal?.name}
             </Text>
-            <Text className="text-gray-400 text-sm font-rubik mb-6 text-center">
+            <Text className="text-gray-500 text-sm font-rubik-bold mb-6 text-center uppercase">
               How much would you like to deposit today?
             </Text>
 
-            <View className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 flex-row items-center mb-6">
-              <Text className="text-white text-2xl font-rubik-bold mr-2">
+            <View
+              className={`w-full ${retro.card} p-4 flex-row items-center mb-6`}
+            >
+              <Text className="text-black text-2xl font-rubik-bold mr-2">
                 $
               </Text>
               <TextInput
-                className="flex-1 text-white text-2xl font-rubik-bold"
+                className="flex-1 text-black text-2xl font-rubik-bold"
                 placeholder="0"
-                placeholderTextColor="#4b5563"
+                placeholderTextColor="#999"
                 keyboardType="numeric"
                 value={amountToAdd}
                 onChangeText={setAmountToAdd}
@@ -337,17 +388,21 @@ const Savings = () => {
             <View className="flex-row gap-3 w-full">
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
-                className="flex-1 bg-[#2a2a2a] p-4 rounded-2xl items-center"
+                className="flex-1 bg-gray-300 p-4 rounded-2xl items-center border-2 border-black"
+                style={retro.btnShadow}
               >
-                <Text className="text-white font-rubik-medium">Cancel</Text>
+                <Text className="text-black font-rubik-bold uppercase">
+                  Cancel
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={handleDeposit}
                 disabled={loading}
-                className="flex-1 bg-purple-600 p-4 rounded-2xl items-center"
+                className="flex-1 bg-[#A855F7] p-4 rounded-2xl items-center border-2 border-black"
+                style={retro.btnShadow}
               >
-                <Text className="text-white font-rubik-bold">
+                <Text className="text-white font-rubik-bold uppercase">
                   {loading ? "Adding..." : "Deposit"}
                 </Text>
               </TouchableOpacity>

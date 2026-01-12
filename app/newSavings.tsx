@@ -26,6 +26,32 @@ const NewSaving = () => {
   const [targetAmount, setTargetAmount] = useState("");
   const [currentAmount, setCurrentAmount] = useState("");
 
+  const retro = {
+    bg: "bg-[#FFFDF5]",
+    card: "bg-white rounded-xl border-2 border-black",
+    shadow: {
+      shadowColor: "#000",
+      shadowOffset: { width: 3, height: 3 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+    },
+    btnShadow: {
+      shadowColor: "#000",
+      shadowOffset: { width: 2, height: 2 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+    },
+    colors: {
+      yellow: "#ffd33d",
+      teal: "#2EC4B6",
+      red: "#ef233c",
+      green: "#10b981",
+      orange: "#fb923c",
+      blue: "#3b82f6",
+      purple: "#a855f7",
+    },
+  };
+
   const optimisticallyAddSaving = useFinanceStore(
     (state) => state.optimisticallyAddSaving
   );
@@ -105,14 +131,29 @@ const NewSaving = () => {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <SafeAreaView className="flex-1 bg-black justify-between px-6">
+      <SafeAreaView className={`flex-1 ${retro.bg} justify-between px-6`}>
+        {/* Decorative background shapes */}
+        <View
+          className="absolute top-24 right-8 w-12 h-12 bg-[#a855f7] rounded-full border-2 border-black opacity-15"
+          style={retro.btnShadow}
+        />
+        <View
+          className="absolute top-48 left-8 w-8 h-8 bg-[#ffd33d] rounded-xl border-2 border-black opacity-15 rotate-12"
+          style={retro.btnShadow}
+        />
+        <View
+          className="absolute bottom-32 right-12 w-10 h-10 bg-[#10b981] rounded-lg border-2 border-black opacity-15"
+          style={retro.btnShadow}
+        />
+
         <Stack.Screen options={{ headerShown: false }} />
 
         {/* HEADER */}
         <View className="mt-4">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="p-2 bg-white/10 rounded-full self-start"
+            className="p-2 bg-[#ef233c] border-2 border-black rounded-full self-start"
+            style={retro.btnShadow}
           >
             <Ionicons name="close" size={24} color="white" />
           </TouchableOpacity>
@@ -124,50 +165,63 @@ const NewSaving = () => {
           className="flex-1 justify-center"
         >
           <View>
-            <Text className="text-white text-3xl font-rubik-bold mb-2 text-center">
-              {savingId ? "Edit Goal" : "New Goal"}
+            <Text className="text-black text-3xl font-rubik-bold mb-2 text-center uppercase tracking-tight">
+              {savingId ? "EDIT GOAL" : "NEW GOAL"}
             </Text>
-            <Text className="text-gray-500 text-center font-rubik mb-10">
+            <Text className="text-gray-500 text-center font-rubik-bold mb-10 uppercase tracking-wide text-xs">
               What are you saving towards?
             </Text>
 
             {/* Name Input */}
-            <View className="bg-[#1a1a1a] rounded-2xl px-5 py-4 mb-4 border border-white/5">
-              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1">
+            <View
+              className={`${retro.card} px-5 py-4 mb-4`}
+              style={retro.shadow}
+            >
+              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1 font-rubik-bold">
                 Goal Name
               </Text>
               <TextInput
-                className="text-white text-xl font-rubik-medium"
+                className="text-black text-xl font-rubik-bold"
                 placeholder="e.g. New Car"
-                placeholderTextColor="#444"
+                placeholderTextColor="#999"
                 value={name}
                 onChangeText={setName}
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="done"
               />
             </View>
 
             {/* Target Amount */}
-            <View className="bg-[#1a1a1a] rounded-2xl px-5 py-4 mb-4 border border-white/5">
-              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1">
+            <View
+              className={`${retro.card} px-5 py-4 mb-4`}
+              style={retro.shadow}
+            >
+              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1 font-rubik-bold">
                 Target Amount
               </Text>
               <View className="flex-row items-center">
-                <Text className="text-teal-500 text-xl font-rubik-bold mr-1">
+                <Text className="text-[#A855F7] text-xl font-rubik-bold mr-1">
                   $
                 </Text>
                 <TextInput
-                  className="text-white text-xl font-rubik-medium flex-1"
+                  className="text-black text-xl font-rubik-bold flex-1"
                   placeholder="0.00"
-                  placeholderTextColor="#444"
+                  placeholderTextColor="#999"
                   keyboardType="numeric"
                   value={targetAmount}
                   onChangeText={(t) => handleAmountChange(t, setTargetAmount)}
+                  returnKeyType="done"
                 />
               </View>
             </View>
 
             {/* Current Amount (Optional) */}
-            <View className="bg-[#1a1a1a] rounded-2xl px-5 py-4 mb-4 border border-white/5">
-              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1">
+            <View
+              className={`${retro.card} px-5 py-4 mb-4`}
+              style={retro.shadow}
+            >
+              <Text className="text-gray-500 text-xs uppercase tracking-widest mb-1 font-rubik-bold">
                 Already Saved (Optional)
               </Text>
               <View className="flex-row items-center">
@@ -175,12 +229,13 @@ const NewSaving = () => {
                   $
                 </Text>
                 <TextInput
-                  className="text-white text-xl font-rubik-medium flex-1"
+                  className="text-black text-xl font-rubik-bold flex-1"
                   placeholder="0.00"
-                  placeholderTextColor="#444"
+                  placeholderTextColor="#999"
                   keyboardType="numeric"
                   value={currentAmount}
                   onChangeText={(t) => handleAmountChange(t, setCurrentAmount)}
+                  returnKeyType="done"
                 />
               </View>
             </View>
@@ -191,13 +246,14 @@ const NewSaving = () => {
         <View className="mb-4">
           <TouchableOpacity
             onPress={handleSubmit}
-            className={`w-full py-5 rounded-full items-center ${
-              name && targetAmount ? "bg-teal-500" : "bg-gray-800"
+            className={`w-full py-5 rounded-full items-center border-2 border-black ${
+              name && targetAmount ? "bg-[#A855F7]" : "bg-gray-300"
             }`}
+            style={name && targetAmount ? retro.btnShadow : undefined}
             disabled={!name || !targetAmount}
           >
             <Text
-              className={`font-rubik-bold text-lg ${name && targetAmount ? "text-white" : "text-gray-500"}`}
+              className={`font-rubik-bold text-lg uppercase tracking-tight ${name && targetAmount ? "text-white" : "text-gray-500"}`}
             >
               {savingId ? "Update Goal" : "Create Goal"}
             </Text>
